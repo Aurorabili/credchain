@@ -1,0 +1,16 @@
+{
+    "name": "credchain",
+    "private": true,
+    "version": "0.1.0",
+    "workspaces": [
+        "apps/*",
+        "contracts",
+        "packages/*"
+    ],
+    "scripts": {
+        "dev:web": "pnpm --filter @credchain/web dev",
+        "build:web": "pnpm --filter @credchain/web build",
+        "dev:chain": "pnpm --filter @credchain/contracts node",
+        "test:contracts": "pnpm --filter @credchain/contracts test"
+    }
+}

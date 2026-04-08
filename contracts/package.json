@@ -1,0 +1,20 @@
+{
+    "name": "@credchain/contracts",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "build": "hardhat compile",
+        "test": "hardhat test",
+        "node": "hardhat node",
+        "deploy:local": "hardhat run scripts/deploy.ts --network localhost"
+    },
+    "devDependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "@openzeppelin/contracts": "^4.9.6",
+        "chai": "^4.5.0",
+        "@types/mocha": "^10.0.10",
+        "hardhat": "^2.22.8",
+        "typescript": "^5.6.3",
+        "ts-node": "^10.9.2"
+    }
+}
