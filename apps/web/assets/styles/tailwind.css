@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-
     html,
     body,
     #__nuxt {
@@ -11,6 +10,20 @@
     }
 
     body {
-        @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+        @apply bg-surface text-on-surface antialiased;
+    }
+
+    ::selection {
+        @apply bg-primary/20 text-on-surface;
+    }
+}
+
+@layer components {
+    .md3-text-field {
+        @apply w-full rounded-md3-md border border-outline-variant bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none transition duration-150 placeholder:text-on-surface-variant/80 focus:border-primary focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/15;
+    }
+
+    .md3-section-shell {
+        @apply space-y-4 px-4 pb-28 pt-4;
     }
 }
