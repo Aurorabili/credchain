@@ -1,0 +1,15 @@
+node_modules
+.env
+.env.*
+!.env.example
+.nuxt
+.output
+coverage
+artifacts
+cache
+typechain-types
+dist
+*.tsbuildinfo
+.mock-ipfs
+.agents
+.codex
