@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --md-sys-color-primary: 56 86 181;
+    --md-sys-color-on-primary: 255 255 255;
+    --md-sys-color-primary-container: 219 225 255;
+    --md-sys-color-on-primary-container: 0 22 82;
+    --md-sys-color-secondary: 88 94 113;
+    --md-sys-color-on-secondary: 255 255 255;
+    --md-sys-color-secondary-container: 220 226 249;
+    --md-sys-color-on-secondary-container: 21 27 44;
+    --md-sys-color-tertiary: 114 84 106;
+    --md-sys-color-on-tertiary: 255 255 255;
+    --md-sys-color-tertiary-container: 252 215 238;
+    --md-sys-color-on-tertiary-container: 40 19 36;
+    --md-sys-color-error: 186 26 26;
+    --md-sys-color-on-error: 255 255 255;
+    --md-sys-color-error-container: 255 218 214;
+    --md-sys-color-on-error-container: 65 0 2;
+    --md-sys-color-surface: 255 250 247;
+    --md-sys-color-on-surface: 28 27 27;
+    --md-sys-color-surface-dim: 221 217 218;
+    --md-sys-color-surface-bright: 255 250 247;
+    --md-sys-color-surface-container-lowest: 255 255 255;
+    --md-sys-color-surface-container-low: 249 245 245;
+    --md-sys-color-surface-container: 243 239 239;
+    --md-sys-color-surface-container-high: 237 233 234;
+    --md-sys-color-surface-container-highest: 232 228 228;
+    --md-sys-color-surface-variant: 226 227 239;
+    --md-sys-color-on-surface-variant: 68 70 79;
+    --md-sys-color-outline: 121 118 118;
+    --md-sys-color-outline-variant: 196 196 196;
+}
+
+.dark {
+    --md-sys-color-primary: 171 198 255;
+    --md-sys-color-on-primary: 0 37 100;
+    --md-sys-color-primary-container: 32 63 157;
+    --md-sys-color-on-primary-container: 219 225 255;
+    --md-sys-color-secondary: 192 198 220;
+    --md-sys-color-on-secondary: 42 48 66;
+    --md-sys-color-secondary-container: 64 71 89;
+    --md-sys-color-on-secondary-container: 220 226 249;
+    --md-sys-color-tertiary: 224 187 210;
+    --md-sys-color-on-tertiary: 64 39 59;
+    --md-sys-color-tertiary-container: 88 61 82;
+    --md-sys-color-on-tertiary-container: 252 215 238;
+    --md-sys-color-error: 255 180 171;
+    --md-sys-color-on-error: 105 0 5;
+    --md-sys-color-error-container: 147 0 10;
+    --md-sys-color-on-error-container: 255 218 214;
+    --md-sys-color-surface: 28 27 27;
+    --md-sys-color-on-surface: 230 224 221;
+    --md-sys-color-surface-dim: 28 27 27;
+    --md-sys-color-surface-bright: 55 53 54;
+    --md-sys-color-surface-container-lowest: 20 19 19;
+    --md-sys-color-surface-container-low: 35 33 34;
+    --md-sys-color-surface-container: 39 37 38;
+    --md-sys-color-surface-container-high: 47 45 46;
+    --md-sys-color-surface-container-highest: 55 53 54;
+    --md-sys-color-surface-variant: 69 70 79;
+    --md-sys-color-on-surface-variant: 196 196 196;
+    --md-sys-color-outline: 186 186 186;
+    --md-sys-color-outline-variant: 69 70 79;
+}
+
+@layer base {
+    .material-symbols-outlined {
+        font-family: "Material Symbols Outlined";
+        font-weight: normal;
+        font-style: normal;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "liga";
+    }
+
+    .material-symbols-outlined.icon-filled {
+        font-variation-settings: "FILL" 1;
+    }
+}

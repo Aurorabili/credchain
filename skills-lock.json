@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "skills": {
+    "m3-web-tailwind": {
+      "source": "shelbeely/Shelbeely-Agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/m3-web-tailwind/SKILL.md",
+      "computedHash": "cc2eb89cb781f0dbcef98039a299f53c6273305098275e04f468b4d4c1a452d2"
+    },
+    "material-design-3-color": {
+      "source": "shelbeely/Shelbeely-Agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/material-design-3-color/SKILL.md",
+      "computedHash": "7aea2839ffeaf0f80401fb40c9f102b0a5967a996b3e9b95a249265e4418989e"
+    },
+    "material-design-3-guide": {
+      "source": "shelbeely/Shelbeely-Agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/material-design-3-guide/SKILL.md",
+      "computedHash": "f6f94d3d1e708a3b41b461505e2eb9377d80ae6dfa4df496d2152bb8d98648d7"
+    },
+    "material-design-3-icons": {
+      "source": "shelbeely/Shelbeely-Agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/material-design-3-icons/SKILL.md",
+      "computedHash": "891ad59f7e8cd63ffeedc77f780b903e729035de7f7e4c874731b1b227f7ec46"
+    },
+    "material-design-3-layout": {
+      "source": "shelbeely/Shelbeely-Agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/material-design-3-layout/SKILL.md",
+      "computedHash": "7f15306458bf1b54f2a41728d0f04df404ac5ba425057a3ab3ecd21581b34dfc"
+    },
+    "material-design-3-motion": {
+      "source": "shelbeely/Shelbeely-Agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/material-design-3-motion/SKILL.md",
+      "computedHash": "830bee85e28591a84cb5cf58893230cff6c1cff945d3d84085d864af9da5e954"
+    },
+    "material-design-3-shape": {
+      "source": "shelbeely/Shelbeely-Agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/material-design-3-shape/SKILL.md",
+      "computedHash": "c095c3bac66d665a5213ba0240b5dd8c9d204546a6837dd025150a9ddbaddb72"
+    },
+    "material-design-3-typography": {
+      "source": "shelbeely/Shelbeely-Agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/material-design-3-typography/SKILL.md",
+      "computedHash": "cb32a8df938cdd08e125c81d128b6e648541140d521bf9187aa6099980c33b00"
+    }
+  }
+}
