@@ -275,10 +275,353 @@ $$
 
 本方案的理论支撑主要参考了两类工作：一类是基于全局谱/特征向量的声誉计算以对比全图方法的数学含义，另一类是增量维护与差分更新的算法基础。代表性参考文献包括 Eigentrust \cite{kamvar2003eigentrust}（全局声誉谱方法的工程化实现）与物化视图增量维护的综述性工作 \cite{gupta1999mv}。完整 BibTeX 条目见 `docs/references.bib`。
 
+## 11. 投票基数偏差与统计校正（Audience-Size Bias Correction）
+
+### 11.1 问题与目标
+
+当前 `ReputationCore.sol` 中的 SBT 分数 `s_t` 是一个**带权、带符号、可截断**的累计状态：
+
+$$
+\Delta s_t = \alpha \cdot w_a \cdot v,\quad v\in\{-1,+1\}
+$$
+
+其中投票权重 $w_a$ 由账户声誉决定，最终分数被投影到 $[S_{\min}, S_{\max}]$ 区间。
+
+这意味着链上 `score` 不是传统意义上的“平均分”，而是“治理强度信号”。因此会出现以下体验问题：
+
+1. 用户无法像阅读电商/影评网站一样同时看到“评分”和“有多少人参与评价”。
+2. 公开凭证（如志愿者证书）更容易获得大量投票，私域凭证（如某校优秀毕业生成就）天然样本更少。
+3. 单看累计分数，无法区分“少数高权重用户快速抬高”与“较大群体形成稳定共识”。
+
+本节目标不是改变链上声誉状态机，而是为**展示层与排序层**增加一个可解释的“可信度校正分”：
+
+1. 在相似受众可信度下，让公开凭证与私域凭证具有更可比的展示效果。
+2. 让投票人数成为“共识强度”的一部分，而不是简单绝对票数碾压。
+3. 保持链上每次投票的复杂度为 $O(1)$。
+
+### 11.2 关键约束：为什么不能直接把当前 `score / voteCount` 当成平均分
+
+直接把当前链上 `score` 除以 `voteCount` 并不严谨，原因有三：
+
+1. `score` 是加权累计量，而不是普通样本和。
+2. 当前合约允许同一地址重复投票，`voteCount` 若只是“调用次数”，不等于独立样本数。
+3. `score` 会被 `_clamp` 截断，截断后的值不再等于原始累计和。
+
+因此，一个可行方案必须显式区分三类量：
+
+1. **链上结算分**：用于 $\Phi$ / $\Gamma$ 和真实声誉结算，保持现有 `score` 逻辑。
+2. **链上统计量**：用于刻画“有多少人、多少权重参与过投票”。
+3. **链下展示分**：将链上结算分与统计量组合成用户可理解的五分制/语义标签。
+
+### 11.3 方案选择：优先选贝叶斯，不选 Wilson
+
+#### 11.3.1 推荐：贝叶斯平滑后的“加权均值展示分”
+
+在 CredChain 当前模型下，推荐方案不是直接对 `score` 做贝叶斯，而是先构造一个**标准化加权均值**，再做贝叶斯平滑。
+
+定义链上累计统计量：
+
+$$
+\text{rawVoteSum}_t = \sum_i \alpha \cdot w_i \cdot v_i
+$$
+
+$$
+\text{weightSum}_t = \sum_i w_i
+$$
+
+$$
+\text{voteCount}_t = \text{唯一投票账户数}
+$$
+
+其中每个账户对同一 `tokenId` 默认只允许投一次有效票（详见 11.5），从而使 `voteCount_t` 更接近“独立评价人数”。
+
+先构造一个标准化均值：
+
+$$
+\mu_t =
+\begin{cases}
+0, & \text{weightSum}_t = 0\\
+\frac{\text{rawVoteSum}_t}{\alpha \cdot \text{weightSum}_t}, & \text{otherwise}
+\end{cases}
+$$
+
+由定义可知 $\mu_t \in [-1, 1]$。再将其映射到 0-100 展示区间：
+
+$$
+\text{baseDisplay}_t = 50 \cdot (1 + \mu_t)
+$$
+
+然后对 `baseDisplay_t` 做贝叶斯平滑：
+
+$$
+\text{displayScore}_t = \frac{C \cdot m + \text{voteCount}_t \cdot \text{baseDisplay}_t}{C + \text{voteCount}_t}
+$$
+
+其中：
+
+- $m$ 为链下维护的全网展示先验均值，推荐初始值为 50；
+- $C$ 为冷启动平滑常数，推荐取 $10 \sim 20$。
+
+**解释：**
+
+1. `baseDisplay_t` 反映“在参与者内部，正负加权共识的方向与强度”。
+2. `voteCount_t` 反映“有多少真实账户参与了共识形成”。
+3. 贝叶斯平滑让少量投票的凭证回归中性，不会因为 1-2 个高权重投票就冲到榜首。
+
+这正适合“公开凭证和私域凭证受众规模不同，但在各自群体内可信度可能接近”的场景。
+
+#### 11.3.2 不推荐：Wilson 作为当前版本的主方案
+
+Wilson 下界适合二项分布或“好评率”模型，即系统中需要明确区分：
+
+- 正票数 / 负票数；
+- 或成功次数 / 总次数。
+
+但当前 `ReputationCore.sol` 并未保存：
+
+1. `upvoteCount` / `downvoteCount`；
+2. `positiveWeightSum` / `negativeWeightSum`；
+3. 一个自然可解释的 Bernoulli 成功率 $\hat{p}$。
+
+更重要的是，当前系统的投票是**带权投票**，而 Wilson 更自然地服务于未加权或可明确定义成功率的场景。
+
+因此：
+
+1. **当前版本主方案应选贝叶斯平滑**。
+2. **Wilson 只适合未来扩展到“正负票比例排行榜”时作为附加排序指标**，不适合作为现阶段核心展示分。
+
+### 11.4 建议实施架构
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                 链上（ReputationCore.sol）                    │
+│                                                              │
+│  结算状态：                                                   │
+│    score[tokenId]        ← 现有链上结算分（保留）             │
+│    reputation[owner]     ← 现有账户声誉缓存（保留）           │
+│                                                              │
+│  新增统计状态：                                               │
+│    rawVoteSum[tokenId]   ← 未截断的带权投票和                 │
+│    weightSum[tokenId]    ← 参与投票的总权重                   │
+│    voteCount[tokenId]    ← 唯一投票账户数                     │
+│    hasVoted[tokenId][a]  ← 账户是否已对该凭证投票             │
+│                                                              │
+│  每次 vote() 时原子更新：                                      │
+│    1. 检查 KYC / token 存在 / 未撤销 / 未重复投票             │
+│    2. delta = ALPHA * weight * direction                      │
+│    3. rawVoteSum += delta                                     │
+│    4. weightSum += weight                                     │
+│    5. voteCount += 1                                          │
+│    6. score = clamp(score + delta)                            │
+│    7. reputation += phi(newScore) - phi(oldScore)             │
+└──────────────────────┬───────────────────────────────────────┘
+                       │ 可验证原始数据
+                       ▼
+┌──────────────────────────────────────────────────────────────┐
+│                 链下（前端 / 索引器）                         │
+│                                                              │
+│  baseDisplay = f(rawVoteSum, weightSum)                      │
+│  displayScore = Bayesian(baseDisplay, voteCount, m, C)       │
+│                                                              │
+│  展示：                                                       │
+│    五分制 + 语义标签 + 投票人数 + 原始链上分                  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 11.5 链上改动建议
+
+#### 11.5.1 最小新增状态
+
+在 `ReputationCore.sol` 中新增：
+
+```solidity
+mapping(uint256 => int256) private _rawVoteSums;
+mapping(uint256 => uint256) private _weightSums;
+mapping(uint256 => uint256) private _voteCounts;
+mapping(uint256 => mapping(address => bool)) private _hasVoted;
+```
+
+含义如下：
+
+1. `_rawVoteSums[tokenId]`：记录未截断的带权投票和，用于展示层标准化均值。
+2. `_weightSums[tokenId]`：记录参与投票的总权重，用于抵消“高权重少数票 vs 低权重大量票”的量纲差异。
+3. `_voteCounts[tokenId]`：记录唯一投票账户数，用于贝叶斯冷启动平滑。
+4. `_hasVoted[tokenId][account]`：防止一个 KYC 账户反复增加样本量。
+
+#### 11.5.2 `vote()` 的最小逻辑调整
+
+在现有 [ReputationCore.sol](/workspaces/credchain/contracts/contracts/ReputationCore.sol) 的 `vote()` 基础上增加：
+
+```solidity
+require(!_hasVoted[tokenId][msg.sender], "ReputationCore: already voted");
+
+int256 delta = ALPHA * int256(weight) * int256(direction);
+
+_rawVoteSums[tokenId] += delta;
+_weightSums[tokenId] += weight;
+_voteCounts[tokenId] += 1;
+_hasVoted[tokenId][msg.sender] = true;
+```
+
+其余链上声誉结算逻辑保持不变：
+
+```solidity
+int256 oldScore = _scores[tokenId];
+int256 newScore = _clamp(oldScore + delta, S_MIN, S_MAX);
+int256 repDelta = phi(newScore) - phi(oldScore);
+
+_scores[tokenId] = newScore;
+_reputations[owner] += repDelta;
+```
+
+#### 11.5.3 新增 view 接口
+
+建议新增：
+
+```solidity
+function getVoteCount(uint256 tokenId) external view returns (uint256);
+function getWeightSum(uint256 tokenId) external view returns (uint256);
+function getRawVoteSum(uint256 tokenId) external view returns (int256);
+function hasVoted(uint256 tokenId, address account) external view returns (bool);
+```
+
+前端只依赖这些 view 数据即可完成展示层校正，无需改变 `phi()` 或 `getReputation()` 的现有设计。
+
+### 11.6 复杂度与 Gas 分析
+
+该方案仍保持单次投票 **$O(1)$**：
+
+1. 不涉及遍历某个账户持有的所有 SBT；
+2. 不涉及全网统计的链上重算；
+3. 仅增加常数个 `SLOAD/SSTORE`。
+
+与当前版本相比，新增成本主要来自：
+
+1. `_hasVoted[tokenId][msg.sender]` 的检查与写入；
+2. `_rawVoteSums[tokenId]` 写入；
+3. `_weightSums[tokenId]` 写入；
+4. `_voteCounts[tokenId]` 写入。
+
+因此：
+
+1. **渐进复杂度不变，仍为 $O(1)$**；
+2. **常数项会增加**，但这属于“多存几个统计量”的代价，而不是算法级退化；
+3. 相比引入 Wilson 所需的链上浮点近似、平方根或更复杂计数结构，这一版本明显更可控。
+
+### 11.7 链下展示层实现
+
+```typescript
+const C = 12
+let globalPrior = 50 // 0-100 中性均值，可由索引器周期更新
+
+interface DisplayScore {
+  raw: number          // 原始链上结算分
+  base: number         // 标准化加权均值（0-100）
+  bayesian: number     // 贝叶斯平滑后的展示分（0-100）
+  star: number         // 0-5
+  label: string
+}
+
+const LABELS = ['待验证', '信誉较差', '信誉一般', '信誉良好', '信誉优秀', '信誉极好']
+
+function clamp(x: number, lo: number, hi: number) {
+  return Math.min(hi, Math.max(lo, x))
+}
+
+function displayScore(
+  rawScore: number,
+  rawVoteSum: number,
+  weightSum: number,
+  voteCount: number,
+  alpha: number
+): DisplayScore {
+  const mean = weightSum === 0 ? 0 : rawVoteSum / (alpha * weightSum) // [-1, 1]
+  const base = clamp(50 * (1 + mean), 0, 100)
+  const bayesian = (C * globalPrior + voteCount * base) / (C + voteCount)
+  const star = clamp(Math.round(bayesian / 20), 0, 5)
+  return {
+    raw: rawScore,
+    base: Math.round(base * 100) / 100,
+    bayesian: Math.round(bayesian * 100) / 100,
+    star,
+    label: LABELS[star],
+  }
+}
+```
+
+### 11.8 五分制与语义标签映射
+
+| 展示分区间 | 五分制 | 语义标签 |
+|---|---|---|
+| $\ge 85$ | ★★★★★ | 信誉极好 |
+| $70 - 84$ | ★★★★☆ | 信誉优秀 |
+| $55 - 69$ | ★★★☆☆ | 信誉良好 |
+| $40 - 54$ | ★★☆☆☆ | 信誉一般 |
+| $25 - 39$ | ★☆☆☆☆ | 信誉较差 |
+| $< 25$ | ☆☆☆☆☆ | 待验证 |
+
+在 UI 上建议同时展示：
+
+1. `bayesian` 展示分；
+2. 星级/语义标签；
+3. `(N 人参与投票)`；
+4. 原始链上分 `rawScore` 作为高级信息。
+
+这样用户能同时看到：
+
+1. 系统的链上真实结算状态；
+2. 面向人类理解的信誉等级；
+3. 共识强度是否来自广泛参与。
+
+### 11.9 与现有 $\Phi$ / $\Gamma$ 的关系
+
+该方案**不改变**现有链上声誉闭环：
+
+1. `score[tokenId]` 仍用于 `phi(score)`；
+2. `reputation[owner]` 仍由 `phi(newScore) - phi(oldScore)` 增量更新；
+3. `weight(voter)` 仍由 `getReputation(voter)` 决定。
+
+也就是说，新增统计校正后，系统将同时拥有两条并行语义：
+
+1. **协议内语义**：链上 `score / reputation / weight`，用于投票与治理结算；
+2. **展示层语义**：`displayScore / star / label / voteCount`，用于排序、卡片展示与用户理解。
+
+这种分离是必要的，因为当前协议内分数本来就承担“治理强度”职责，不应为了 UI 语义而反向污染结算逻辑。
+
+### 11.10 为什么这里不采用“群体感知折扣”
+
+不建议采用如下折扣：
+
+$$
+\text{finalScore}_t = \bar{s}_t \cdot \left(1 - \beta \cdot \frac{\text{voteCount}_t}{\text{maxVoteCount}}\right)
+$$
+
+原因是它会系统性惩罚“被更多人看见的凭证”，与本节目标冲突：
+
+1. 公开凭证本来就天然更容易被更多人投票；
+2. 受众大不等于操纵，直接折扣会误伤正常高共识凭证；
+3. 若未来需要检测异常刷票，应依赖链下风控、时间窗口分析与 KYC 图谱，而不是直接对大样本降权。
+
+### 11.11 结论
+
+结合现有文档与当前合约实现，推荐结论如下：
+
+1. **主方案选择：贝叶斯平滑后的加权均值展示分**。
+2. **链上最小改动：新增 `rawVoteSum / weightSum / voteCount / hasVoted` 四类状态与对应 view**。
+3. **治理结算逻辑不变：继续使用当前 `score -> phi -> reputation -> weight` 闭环**。
+4. **复杂度保持不变：单次投票仍为 $O(1)$**。
+5. **Wilson 不作为当前版本主方案**，因为当前数据结构不自然支持二项成功率建模。
+
+该方案既保留了现有链上声誉系统的可执行性，也为“五星信誉分 + 语义标签 + 投票人数”提供了统计上更合理的展示基础。
+
 ## 附录 A：最小链上状态建议
 
 - `mapping(uint256 => int256) score;`
 - `mapping(address => int256) reputation;`
 - `mapping(address => bool) kycVerified;`
+- `mapping(uint256 => int256) rawVoteSum;`
+- `mapping(uint256 => uint256) weightSum;`
+- `mapping(uint256 => uint256) voteCount;`
+- `mapping(uint256 => mapping(address => bool)) hasVoted;`
 
-注：上述字段仅为状态设计建议，不限定具体合约拆分方式。
+注：若未来允许“改票”，仍可保持 $O(1)$，但需要额外存储每个账户对每个 token 的历史方向与历史权重快照，工程复杂度显著高于当前推荐的一次性投票版本。
