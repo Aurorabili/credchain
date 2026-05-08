@@ -14,7 +14,7 @@ onMounted(async () => {
 
 const navItems = [
   { to: "/", icon: "dashboard", label: "仪表盘" },
-  { to: "/credentials", icon: "verified", label: "凭证" },
+  { to: "/credentials", icon: "verified", label: "证书" },
   { to: "/mint", icon: "add_circle", label: "铸造" },
 ];
 </script>
@@ -61,7 +61,7 @@ const navItems = [
     </header>
     </template>
 
-    <main class="p-4 max-w-4xl mx-auto">
+    <main class="p-4 max-w-5xl mx-auto">
       <slot />
     </main>
 

@@ -29,8 +29,8 @@ async function load() {
 </script>
 
 <template>
-  <div class="space-y-6 pt-2">
-    <PageHeader title="我的证书" />
+  <div class="space-y-8 pt-2">
+    <PageHeader title="我的证书" subtitle="这里会显示当前钱包持有的全部证书。" />
 
     <div v-if="loading" class="text-center py-16 text-on-surface-variant">
       <span class="material-symbols-outlined text-5xl mb-3 block animate-spin" aria-hidden="true">refresh</span>
@@ -42,7 +42,7 @@ async function load() {
       {{ errorMsg }}
     </div>
 
-    <div v-else-if="credentials.length === 0" class="text-center py-16 text-sm text-on-surface-variant space-y-3">
+    <div v-else-if="credentials.length === 0" class="flat-surface text-center py-16 text-sm text-on-surface-variant space-y-3">
       <span class="material-symbols-outlined text-6xl block" aria-hidden="true">folder_open</span>
       <p>暂无凭证</p>
       <NuxtLink to="/mint" class="text-primary inline-flex items-center gap-1">
@@ -51,7 +51,7 @@ async function load() {
       </NuxtLink>
     </div>
 
-    <div v-else class="divide-y divide-outline-variant">
+    <div v-else class="flat-list">
       <CredentialRow v-for="c in credentials" :key="c.tokenId" :credential="c" />
     </div>
   </div>

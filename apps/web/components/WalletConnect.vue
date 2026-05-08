@@ -1,11 +1,12 @@
 <script setup lang="ts">
 const chain = useChain();
+const { getDisplayName } = useAddressBook();
 
 const connected = computed(() => chain.connectedRef.value);
 const displayAddress = computed(() => {
   const a = chain.accountRef.value;
   if (!a) return "";
-  return a.slice(0, 6) + "..." + a.slice(-4);
+  return getDisplayName(a);
 });
 
 async function toggle() {
@@ -23,7 +24,7 @@ async function toggle() {
 
 <template>
   <button
-    class="flex items-center gap-2 px-4 py-2 rounded-md3-full text-sm font-medium transition"
+    class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition"
     :class="connected ? 'bg-primary-container text-on-primary-container' : 'bg-primary text-on-primary'"
     @click="toggle"
   >

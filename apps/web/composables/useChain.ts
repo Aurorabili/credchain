@@ -12,6 +12,7 @@ import type {
     CredentialMetadataDocument,
 } from "~/utils/credentialMetadata";
 import { getFile, getMetadata, isMockIpfsCid } from "~/utils/mockIpfs";
+import { shortAddress } from "~/utils/address";
 
 export interface ChainCredentialAttribute {
     label: string;
@@ -54,6 +55,14 @@ export interface ChainStats {
     credentialCount: number;
     votingWeight: number;
     kycVerified: boolean;
+}
+
+export interface ChainAccountProfile {
+    address: `0x${string}`;
+    reputation: number;
+    credentialCount: number;
+    kycVerified: boolean;
+    credentials: ChainCredential[];
 }
 
 const STORAGE_KEY = "credchain:connected";
@@ -117,10 +126,6 @@ function businessTypeLabel(type: string): string {
         custom: "自定义业务",
     };
     return labels[type] ?? type;
-}
-
-function shortAddress(address: `0x${string}`): string {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function normalizeMetadataValue(value: unknown): string {
@@ -359,8 +364,8 @@ export function useChain() {
         }
     }
 
-    async function getStats(): Promise<ChainStats> {
-        const addr = _account.value;
+    async function getStats(address?: `0x${string}`): Promise<ChainStats> {
+        const addr = address ?? _account.value;
         if (!addr) throw new Error("Wallet not connected");
         const [rep, wt, kyc, ownedCredentialCount] = await Promise.all([
             getReputation(addr), getWeight(addr), isKYCVerified(addr),
@@ -373,9 +378,7 @@ export function useChain() {
     }
 
     async function getCredential(tokenId: number): Promise<ChainCredential> {
-        const addr = _account.value;
-        if (!addr) throw new Error("Wallet not connected");
-        const detail = await getCredentialDetail(BigInt(tokenId), addr);
+        const detail = await getCredentialDetail(BigInt(tokenId), _account.value);
         const credential = buildFallbackCredential({
             tokenId,
             owner: detail.owner,
@@ -394,8 +397,8 @@ export function useChain() {
         return enrichCredentialWithMetadata(credential);
     }
 
-    async function getCredentials(): Promise<ChainCredential[]> {
-        const addr = _account.value;
+    async function getCredentials(owner?: `0x${string}`): Promise<ChainCredential[]> {
+        const addr = owner ?? _account.value;
         if (!addr) throw new Error("Wallet not connected");
 
         if (_credentialCache && _credentialCache.owner === addr && Date.now() - _credentialCache.ts < CACHE_TTL) {
@@ -421,6 +424,21 @@ export function useChain() {
         return list;
     }
 
+    async function getAccountProfile(address: `0x${string}`): Promise<ChainAccountProfile> {
+        const [stats, credentials] = await Promise.all([
+            getStats(address),
+            getCredentials(address),
+        ]);
+
+        return {
+            address,
+            reputation: stats.reputation,
+            credentialCount: stats.credentialCount,
+            kycVerified: stats.kycVerified,
+            credentials,
+        };
+    }
+
     async function vote(tokenId: number, direction: 1 | -1): Promise<void> {
         const hash = await chainVote(BigInt(tokenId), direction);
         await waitForTx(hash);
@@ -438,6 +456,6 @@ export function useChain() {
     return {
         connect, disconnect, isConnected, getAccount, init,
         connectedRef, accountRef,
-        getStats, getCredential, getCredentials, vote, mint,
+        getStats, getCredential, getCredentials, getAccountProfile, vote, mint,
     };
 }

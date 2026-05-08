@@ -7,18 +7,18 @@ defineProps<{ credential: ChainCredential }>();
 <template>
   <NuxtLink
     :to="`/credentials/${credential.tokenId}`"
-    class="flex items-center gap-4 px-4 py-4 hover:bg-surface-container-high transition-colors"
+    class="flat-list-row px-0 hover:bg-surface-container-low transition-colors"
   >
-    <span class="material-symbols-outlined text-3xl text-primary" aria-hidden="true">verified</span>
+    <span class="material-symbols-outlined text-[28px] text-primary" aria-hidden="true">verified</span>
     <div class="flex-1 min-w-0">
-      <p class="text-sm font-medium truncate">{{ credential.name }}</p>
-      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant">
+      <p class="body-strong truncate">{{ credential.name }}</p>
+      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 helper-text">
         <span>{{ credential.displayLabel }}</span>
         <span>{{ credential.displayStars.toFixed(1) }} / 5.0</span>
         <span>{{ credential.voteCount }} 人参与</span>
       </div>
-      <p class="mt-1 text-xs text-on-surface-variant truncate">
-        证书 · {{ credential.businessType }} · 原始链上分 {{ credential.score }}
+      <p class="mt-1 helper-text truncate">
+        证书 · {{ credential.businessType }}
       </p>
     </div>
     <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">chevron_right</span>

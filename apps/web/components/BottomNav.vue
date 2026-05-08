@@ -3,7 +3,7 @@ const route = useRoute();
 
 const items = [
   { to: "/", icon: "dashboard", label: "仪表盘" },
-  { to: "/credentials", icon: "verified", label: "凭证" },
+  { to: "/credentials", icon: "verified", label: "证书" },
   { to: "/mint", icon: "add_circle", label: "铸造" },
 ];
 </script>

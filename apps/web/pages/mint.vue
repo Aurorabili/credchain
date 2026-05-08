@@ -60,6 +60,9 @@ async function submit() {
     return;
   }
 
+  const confirmed = window.confirm("确认铸造这张证书？提交到链上后将不能直接修改。");
+  if (!confirmed) return;
+
   submitting.value = true;
   try {
     const account = chain.getAccount();
