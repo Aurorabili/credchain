@@ -56,9 +56,6 @@ async function goSearch() {
           <EditableAccountName :address="account" :kyc-verified="stats.kycVerified" />
           <div class="space-y-1">
             <p class="page-subtitle break-all">{{ account }}</p>
-            <p class="helper-text">
-              当前声誉 {{ stats.reputation }}
-            </p>
           </div>
         </div>
 
@@ -80,7 +77,7 @@ async function goSearch() {
         </p>
         <div class="pb-1">
           <p class="body-strong">{{ stats.credentialCount === 1 ? "张证书" : "张证书" }}</p>
-          <p class="helper-text">{{ hasFriendlyName ? "这是你当前钱包名下的证书数量" : `当前钱包 ${shortAddress(account)} 持有的证书数量` }}</p>
+          <p class="helper-text">当前声誉 {{ stats.reputation }}</p>
         </div>
       </div>
     </section>

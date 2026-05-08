@@ -29,7 +29,7 @@ async function load() {
 </script>
 
 <template>
-  <div class="space-y-8 pt-2">
+  <div class="space-y-8">
     <PageHeader title="我的证书" subtitle="这里会显示当前钱包持有的全部证书。" />
 
     <div v-if="loading" class="text-center py-16 text-on-surface-variant">
