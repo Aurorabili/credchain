@@ -9,8 +9,7 @@ const chain = useChain();
 const router = useRouter();
 
 const title = ref("");
-const businessType = ref("volunteer");
-const customBusinessType = ref("");
+const businessType = ref("");
 const description = ref("");
 const issuerName = ref("");
 const businessFields = ref<CredentialBusinessField[]>([
@@ -20,15 +19,6 @@ const evidenceFiles = ref<File[]>([]);
 const done = ref(false);
 const submitting = ref(false);
 const errorMessage = ref("");
-
-const businessTypeOptions = [
-  { value: "volunteer", label: "志愿服务" },
-  { value: "graduation", label: "毕业成就" },
-  { value: "internship", label: "实习经历" },
-  { value: "honor", label: "荣誉奖项" },
-  { value: "training", label: "培训证明" },
-  { value: "custom", label: "自定义" },
-];
 
 function addBusinessField() {
   businessFields.value.push({ name: "", value: "", type: "text" });
@@ -42,11 +32,6 @@ function removeBusinessField(index: number) {
 function onEvidenceChanged(event: Event) {
   const input = event.target as HTMLInputElement;
   evidenceFiles.value = Array.from(input.files ?? []);
-}
-
-function resolvedBusinessType() {
-  if (businessType.value !== "custom") return businessType.value;
-  return customBusinessType.value.trim();
 }
 
 async function uploadEvidence(): Promise<CredentialEvidenceReference[]> {
@@ -65,7 +50,7 @@ async function uploadEvidence(): Promise<CredentialEvidenceReference[]> {
 
 async function submit() {
   errorMessage.value = "";
-  const resolvedType = resolvedBusinessType();
+  const resolvedType = businessType.value.trim();
   const filteredFields = businessFields.value
     .map((field) => ({ ...field, name: field.name.trim(), value: field.value.trim() }))
     .filter((field) => field.name && field.value);
@@ -144,22 +129,10 @@ async function submit() {
 
         <label class="block">
           <span class="text-sm font-medium text-on-surface-variant block mb-1">业务类型</span>
-          <select
+          <input
             v-model="businessType"
             class="w-full bg-transparent border border-outline rounded-md3-xs px-4 py-3 text-on-surface focus:border-primary focus:outline-none transition"
-          >
-            <option v-for="option in businessTypeOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-
-        <label v-if="businessType === 'custom'" class="block">
-          <span class="text-sm font-medium text-on-surface-variant block mb-1">自定义业务类型</span>
-          <input
-            v-model="customBusinessType"
-            class="w-full bg-transparent border border-outline rounded-md3-xs px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none transition"
-            placeholder="例如：科研项目"
+            placeholder="例如：志愿服务、科研项目、竞赛成果"
             required
           />
         </label>
