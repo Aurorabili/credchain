@@ -7,11 +7,12 @@
         "apps/*"
     ],
     "scripts": {
-        "dev": "pnpm --filter @credchain/web dev",
+        "dev": "pnpm -r --parallel --filter @credchain/indexer --filter @credchain/web dev",
         "dev:web": "pnpm --filter @credchain/web dev",
-        "chain": "pnpm --filter @credchain/contracts chain",
-        "deploy:contracts": "pnpm --filter @credchain/contracts deploy",
-        "build": "pnpm --filter @credchain/contracts build && pnpm --filter @credchain/shared build && pnpm --filter @credchain/web build",
+        "dev:indexer": "pnpm --filter @credchain/indexer dev",
+        "chain": "pnpm --filter @credchain/contracts run chain",
+        "deploy:contracts": "pnpm --filter @credchain/contracts run deploy",
+        "build": "pnpm --filter @credchain/contracts build && pnpm --filter @credchain/shared build && pnpm --filter @credchain/indexer build && pnpm --filter @credchain/web build",
         "test": "pnpm --filter @credchain/contracts test",
         "lint": "pnpm --filter @credchain/contracts lint && pnpm --filter @credchain/web lint"
     }

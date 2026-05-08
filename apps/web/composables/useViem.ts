@@ -25,7 +25,7 @@ const reputationCoreAddress = CONTRACTS.reputationCore.address as `0x${string}`;
 const credentialSbtAbi = CredentialSBTABI.abi;
 const reputationCoreAbi = ReputationCoreABI.abi;
 
-export interface CredentialSummarySnapshot {
+export interface CredentialDetailSnapshot {
     tokenId: bigint;
     owner: `0x${string}`;
     businessType: string;
@@ -35,9 +35,6 @@ export interface CredentialSummarySnapshot {
     weightSum: bigint;
     voteCount: bigint;
     isRevoked: boolean;
-}
-
-export interface CredentialDetailSnapshot extends CredentialSummarySnapshot {
     tokenUri: string;
     isLocked: boolean;
     ownerReputation: bigint;
@@ -133,24 +130,6 @@ export async function hasVoted(tokenId: bigint, account: `0x${string}`): Promise
     }) as Promise<boolean>;
 }
 
-export async function totalSupply(): Promise<bigint> {
-    return publicClient.readContract({
-        address: credentialSbtAddress,
-        abi: credentialSbtAbi,
-        functionName: "totalSupply",
-        args: [],
-    }) as Promise<bigint>;
-}
-
-export async function tokenByIndex(index: bigint): Promise<bigint> {
-    return publicClient.readContract({
-        address: credentialSbtAddress,
-        abi: credentialSbtAbi,
-        functionName: "tokenByIndex",
-        args: [index],
-    }) as Promise<bigint>;
-}
-
 export async function getWeight(account: `0x${string}`): Promise<bigint> {
     return publicClient.readContract({
         address: reputationCoreAddress,
@@ -169,33 +148,6 @@ export async function isKYCVerified(account: `0x${string}`): Promise<boolean> {
     }) as Promise<boolean>;
 }
 
-export async function getOwnerOf(tokenId: bigint): Promise<`0x${string}`> {
-    return publicClient.readContract({
-        address: credentialSbtAddress,
-        abi: credentialSbtAbi,
-        functionName: "ownerOf",
-        args: [tokenId],
-    }) as Promise<`0x${string}`>;
-}
-
-export async function getCredentialType(tokenId: bigint): Promise<string> {
-    return publicClient.readContract({
-        address: credentialSbtAddress,
-        abi: credentialSbtAbi,
-        functionName: "businessType",
-        args: [tokenId],
-    }) as Promise<string>;
-}
-
-export async function getMetadataHash(tokenId: bigint): Promise<string> {
-    return publicClient.readContract({
-        address: credentialSbtAddress,
-        abi: credentialSbtAbi,
-        functionName: "metadataCID",
-        args: [tokenId],
-    }) as Promise<string>;
-}
-
 export async function getTokenURI(tokenId: bigint): Promise<string> {
     return publicClient.readContract({
         address: credentialSbtAddress,
@@ -203,103 +155,6 @@ export async function getTokenURI(tokenId: bigint): Promise<string> {
         functionName: "tokenURI",
         args: [tokenId],
     }) as Promise<string>;
-}
-
-export async function isRevoked(tokenId: bigint): Promise<boolean> {
-    return publicClient.readContract({
-        address: credentialSbtAddress,
-        abi: credentialSbtAbi,
-        functionName: "isRevoked",
-        args: [tokenId],
-    }) as Promise<boolean>;
-}
-
-export async function getTokenIds(total: bigint): Promise<bigint[]> {
-    const count = Number(total);
-    if (count === 0) return [];
-
-    const results = await strictMulticall(
-        Array.from({ length: count }, (_, index) => ({
-            address: credentialSbtAddress,
-            abi: credentialSbtAbi,
-            functionName: "tokenByIndex" as const,
-            args: [BigInt(index)],
-        }))
-    );
-
-    return results as bigint[];
-}
-
-export async function getCredentialSummaries(tokenIds: bigint[]): Promise<CredentialSummarySnapshot[]> {
-    if (tokenIds.length === 0) return [];
-
-    const results = await strictMulticall(
-        tokenIds.flatMap((tokenId) => ([
-            {
-                address: credentialSbtAddress,
-                abi: credentialSbtAbi,
-                functionName: "ownerOf" as const,
-                args: [tokenId],
-            },
-            {
-                address: credentialSbtAddress,
-                abi: credentialSbtAbi,
-                functionName: "businessType" as const,
-                args: [tokenId],
-            },
-            {
-                address: credentialSbtAddress,
-                abi: credentialSbtAbi,
-                functionName: "metadataCID" as const,
-                args: [tokenId],
-            },
-            {
-                address: reputationCoreAddress,
-                abi: reputationCoreAbi,
-                functionName: "getScore" as const,
-                args: [tokenId],
-            },
-            {
-                address: reputationCoreAddress,
-                abi: reputationCoreAbi,
-                functionName: "getRawVoteSum" as const,
-                args: [tokenId],
-            },
-            {
-                address: reputationCoreAddress,
-                abi: reputationCoreAbi,
-                functionName: "getWeightSum" as const,
-                args: [tokenId],
-            },
-            {
-                address: reputationCoreAddress,
-                abi: reputationCoreAbi,
-                functionName: "getVoteCount" as const,
-                args: [tokenId],
-            },
-            {
-                address: credentialSbtAddress,
-                abi: credentialSbtAbi,
-                functionName: "isRevoked" as const,
-                args: [tokenId],
-            },
-        ]))
-    );
-
-    return tokenIds.map((tokenId, index) => {
-        const offset = index * 8;
-        return {
-            tokenId,
-            owner: results[offset] as `0x${string}`,
-            businessType: results[offset + 1] as string,
-            metadataCID: results[offset + 2] as string,
-            score: results[offset + 3] as bigint,
-            rawVoteSum: results[offset + 4] as bigint,
-            weightSum: results[offset + 5] as bigint,
-            voteCount: results[offset + 6] as bigint,
-            isRevoked: results[offset + 7] as boolean,
-        };
-    });
 }
 
 export async function getCredentialDetail(

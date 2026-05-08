@@ -58,7 +58,7 @@ onMounted(async () => {
         class="inline-flex items-center gap-2 border border-outline text-on-surface rounded-md3-full px-4 py-2.5 text-sm font-medium hover:bg-surface-container-high transition"
       >
         <span class="material-symbols-outlined text-lg" aria-hidden="true">list</span>
-        查看全部
+        我的证书
       </NuxtLink>
     </div>
 

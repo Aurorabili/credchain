@@ -1,0 +1,13 @@
+{
+  "name": "@credchain/indexer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.mjs",
+    "start": "node src/server.mjs",
+    "build": "node --check src/config.mjs && node --check src/db.mjs && node --check src/indexer.mjs && node --check src/server.mjs"
+  },
+  "dependencies": {
+    "viem": "^2.0.0"
+  }
+}

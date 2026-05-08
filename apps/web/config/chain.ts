@@ -17,10 +17,10 @@ export const CONTRACTS = {
 } as const;
 
 export const PARAMS = {
-    alpha: 10n,
-    sMin: -100n,
-    sMax: 1000n,
-    wMax: 50n,
-    k: 2n,
-    cPhi: 200n,
+    alpha: 10,
+    sMin: -100,
+    sMax: 1000,
+    wMax: 50,
+    k: 2,
+    cPhi: 200,
 } as const;

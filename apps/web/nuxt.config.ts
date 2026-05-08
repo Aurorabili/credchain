@@ -1,5 +1,21 @@
+const isDev = process.env.NODE_ENV !== "production";
+
 export default defineNuxtConfig({
     ssr: false,
+    runtimeConfig: {
+        public: {
+            indexerBaseUrl: process.env.NUXT_PUBLIC_INDEXER_BASE_URL || "/api/indexer",
+        },
+    },
+    routeRules: isDev
+        ? {
+            "/api/indexer": { proxy: "http://127.0.0.1:4100/api/indexer" },
+            "/api/indexer/**": { proxy: "http://127.0.0.1:4100/api/indexer/**" },
+        }
+        : undefined,
+    nitro: {
+        devProxy: {},
+    },
     vite: {
         optimizeDeps: {
             include: [

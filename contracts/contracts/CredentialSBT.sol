@@ -2,7 +2,6 @@
 pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC5192} from "./IERC5192.sol";
 import {ICredentialSBT} from "./ICredentialSBT.sol";
@@ -14,7 +13,6 @@ import {ICredentialSBT} from "./ICredentialSBT.sol";
  */
 contract CredentialSBT is
     ERC721,
-    ERC721Enumerable,
     AccessControl,
     IERC5192,
     ICredentialSBT
@@ -109,7 +107,7 @@ contract CredentialSBT is
         address to,
         uint256 tokenId,
         address auth
-    ) internal override(ERC721, ERC721Enumerable) returns (address) {
+    ) internal override returns (address) {
         address from = _ownerOf(tokenId);
         if (from != address(0) && to != address(0)) {
             revert("CredentialSBT: token is soulbound");
@@ -117,16 +115,9 @@ contract CredentialSBT is
         return super._update(to, tokenId, auth);
     }
 
-    function _increaseBalance(
-        address account,
-        uint128 value
-    ) internal override(ERC721, ERC721Enumerable) {
-        super._increaseBalance(account, value);
-    }
-
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override(ERC721, ERC721Enumerable, AccessControl) returns (bool) {
+    ) public view override(ERC721, AccessControl) returns (bool) {
         return
             interfaceId == type(IERC5192).interfaceId ||
             super.supportsInterface(interfaceId);

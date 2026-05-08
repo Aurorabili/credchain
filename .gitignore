@@ -4,6 +4,7 @@ node_modules
 !.env.example
 .nuxt
 .output
+.data
 coverage
 artifacts
 cache

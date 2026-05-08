@@ -2,7 +2,7 @@ import {
     connectWallet, getWalletClient, getReputation, getWeight,
     isKYCVerified, vote as chainVote,
     mintCredential as chainMint, waitForTx,
-    totalSupply, getTokenIds, getCredentialSummaries, getCredentialDetail,
+    getCredentialDetail,
 } from "./useViem";
 import { PARAMS } from "~/config/chain";
 import type {
@@ -64,8 +64,30 @@ const DISPLAY_SMOOTHING = 12;
 const SCORE_SCALE = 20;
 
 // ─── In-memory cache with TTL ───────────────────────────────────
-let _credentialCache: { data: ChainCredential[]; ts: number } | null = null;
+let _credentialCache: { owner: `0x${string}`; data: ChainCredential[]; ts: number } | null = null;
 const CACHE_TTL = 30_000; // 30 seconds
+
+interface IndexedCredentialResponse {
+    credentials: Array<{
+        tokenId: number;
+        owner: `0x${string}`;
+        businessType: string;
+        metadataCID: string;
+        score: number;
+        rawVoteSum: number;
+        weightSum: number;
+        voteCount: number;
+        isRevoked: boolean;
+        mintedAt: string | null;
+        mintedBlock: number | null;
+        updatedAt: string | null;
+        updatedBlock: number | null;
+    }>;
+}
+
+interface IndexedStatsResponse {
+    credentialCount: number;
+}
 
 interface DisplayScoreMetrics {
     baseDisplayScore: number;
@@ -280,6 +302,27 @@ async function enrichCredentialWithMetadata(base: ChainCredential): Promise<Chai
     };
 }
 
+function getIndexerBaseUrl() {
+    const runtimeConfig = useRuntimeConfig();
+    return runtimeConfig.public.indexerBaseUrl.replace(/\/$/, "");
+}
+
+async function fetchIndexedCredentials(owner: `0x${string}`) {
+    const response = await $fetch<IndexedCredentialResponse>(`${getIndexerBaseUrl()}/credentials`, {
+        query: { owner },
+    });
+
+    return response.credentials;
+}
+
+async function fetchIndexedCredentialCount(owner: `0x${string}`) {
+    const response = await $fetch<IndexedStatsResponse>(`${getIndexerBaseUrl()}/stats`, {
+        query: { owner },
+    });
+
+    return response.credentialCount;
+}
+
 export function useChain() {
     async function connect(): Promise<`0x${string}`> {
         const { account: addr } = await connectWallet();
@@ -319,12 +362,12 @@ export function useChain() {
     async function getStats(): Promise<ChainStats> {
         const addr = _account.value;
         if (!addr) throw new Error("Wallet not connected");
-        const [rep, wt, kyc, sup] = await Promise.all([
+        const [rep, wt, kyc, ownedCredentialCount] = await Promise.all([
             getReputation(addr), getWeight(addr), isKYCVerified(addr),
-            totalSupply(),
+            fetchIndexedCredentialCount(addr),
         ]);
         return {
-            reputation: Number(rep), credentialCount: Number(sup),
+            reputation: Number(rep), credentialCount: ownedCredentialCount,
             votingWeight: Number(wt), kycVerified: kyc,
         };
     }
@@ -352,26 +395,29 @@ export function useChain() {
     }
 
     async function getCredentials(): Promise<ChainCredential[]> {
-        if (_credentialCache && Date.now() - _credentialCache.ts < CACHE_TTL) {
+        const addr = _account.value;
+        if (!addr) throw new Error("Wallet not connected");
+
+        if (_credentialCache && _credentialCache.owner === addr && Date.now() - _credentialCache.ts < CACHE_TTL) {
             return _credentialCache.data;
         }
-        const sup = await totalSupply();
-        const tokenIds = await getTokenIds(sup);
-        const list = (await getCredentialSummaries(tokenIds)).map((credential) =>
+
+        const indexedCredentials = await fetchIndexedCredentials(addr);
+        const list = await Promise.all(indexedCredentials.map((credential) =>
             buildFallbackCredential({
-                tokenId: Number(credential.tokenId),
+                tokenId: credential.tokenId,
                 owner: credential.owner,
                 businessType: credential.businessType,
                 metadataCID: credential.metadataCID,
-                score: Number(credential.score),
-                rawVoteSum: Number(credential.rawVoteSum),
-                weightSum: Number(credential.weightSum),
-                voteCount: Number(credential.voteCount),
+                score: credential.score,
+                rawVoteSum: credential.rawVoteSum,
+                weightSum: credential.weightSum,
+                voteCount: credential.voteCount,
                 isRevoked: credential.isRevoked,
             })
-        );
+        ).map(enrichCredentialWithMetadata));
         list.sort((left, right) => right.displayScore - left.displayScore);
-        _credentialCache = { data: list, ts: Date.now() };
+        _credentialCache = { owner: addr, data: list, ts: Date.now() };
         return list;
     }
 

@@ -30,7 +30,7 @@ async function load() {
 
 <template>
   <div class="space-y-6 pt-2">
-    <PageHeader title="凭证列表" />
+    <PageHeader title="我的证书" />
 
     <div v-if="loading" class="text-center py-16 text-on-surface-variant">
       <span class="material-symbols-outlined text-5xl mb-3 block animate-spin" aria-hidden="true">refresh</span>
