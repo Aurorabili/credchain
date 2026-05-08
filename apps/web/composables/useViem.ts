@@ -287,6 +287,19 @@ export async function mintCredential(
     return hash;
 }
 
+export async function revokeCredential(tokenId: bigint): Promise<`0x${string}`> {
+    if (!walletClient) throw new Error("Wallet not connected");
+    const [address] = await walletClient.requestAddresses();
+    const hash = await walletClient.writeContract({
+        account: address,
+        address: credentialSbtAddress,
+        abi: credentialSbtAbi,
+        functionName: "revokeCredential",
+        args: [tokenId],
+    });
+    return hash;
+}
+
 export async function waitForTx(hash: `0x${string}`) {
     return publicClient.waitForTransactionReceipt({ hash });
 }

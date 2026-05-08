@@ -28,7 +28,7 @@ interface ICredentialSBT {
         string calldata metadataCID
     ) external returns (uint256 tokenId);
 
-    /// @notice Revoke a credential SBT (only admin or issuer)
+    /// @notice Revoke a credential SBT (credential owner or account with revoke role)
     function revokeCredential(uint256 tokenId) external;
 
     /// @notice Check if a token exists

@@ -3,6 +3,7 @@ import {
     isKYCVerified, vote as chainVote,
     mintCredential as chainMint, waitForTx,
     getCredentialDetail,
+    revokeCredential as chainRevokeCredential,
 } from "./useViem";
 import { PARAMS } from "~/config/chain";
 import type {
@@ -453,9 +454,15 @@ export function useChain() {
         _credentialCache = null;
     }
 
+    async function revoke(tokenId: number): Promise<void> {
+        const hash = await chainRevokeCredential(BigInt(tokenId));
+        await waitForTx(hash);
+        _credentialCache = null;
+    }
+
     return {
         connect, disconnect, isConnected, getAccount, init,
         connectedRef, accountRef,
-        getStats, getCredential, getCredentials, getAccountProfile, vote, mint,
+        getStats, getCredential, getCredentials, getAccountProfile, vote, mint, revoke,
     };
 }

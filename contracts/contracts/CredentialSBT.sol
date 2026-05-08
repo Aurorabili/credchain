@@ -62,8 +62,13 @@ contract CredentialSBT is
     }
 
     /// @inheritdoc ICredentialSBT
-    function revokeCredential(uint256 tokenId) external onlyRole(REVOKER_ROLE) {
-        _requireOwned(tokenId);
+    function revokeCredential(uint256 tokenId) external {
+        address owner = _ownerOf(tokenId);
+        require(owner != address(0), "ERC721: invalid token ID");
+        require(
+            msg.sender == owner || hasRole(REVOKER_ROLE, msg.sender),
+            "CredentialSBT: not authorized to revoke"
+        );
         require(!_revoked[tokenId], "CredentialSBT: already revoked");
         _revoked[tokenId] = true;
         emit CredentialRevoked(tokenId);

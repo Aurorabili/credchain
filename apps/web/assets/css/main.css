@@ -235,6 +235,18 @@
         @apply inline-flex items-center gap-2 rounded-full bg-surface-container px-4 py-2.5 text-sm font-medium text-on-surface transition hover:bg-surface-container-high;
     }
 
+    .danger-pill {
+        @apply inline-flex items-center gap-2 rounded-full bg-error px-4 py-2.5 text-sm font-medium text-on-error transition hover:opacity-90;
+    }
+
+    .dialog-scrim {
+        @apply fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-4 pb-6 pt-16 backdrop-blur-[2px] sm:items-center sm:p-6;
+    }
+
+    .dialog-surface {
+        @apply w-full max-w-md rounded-[28px] bg-surface-container-high px-6 py-6 shadow-[0_24px_48px_rgba(0,0,0,0.18)];
+    }
+
     .search-shell {
         @apply flex items-center gap-3 rounded-full bg-surface-container-low px-4 py-3;
     }
@@ -250,4 +262,19 @@
     .title-inline {
         @apply text-base font-semibold leading-6 text-on-surface;
     }
+}
+
+.dialog-fade-enter-active,
+.dialog-fade-leave-active {
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.dialog-fade-enter-from,
+.dialog-fade-leave-to {
+    opacity: 0;
+}
+
+.dialog-fade-enter-from .dialog-surface,
+.dialog-fade-leave-to .dialog-surface {
+    transform: translateY(12px) scale(0.98);
 }

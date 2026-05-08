@@ -58,9 +58,17 @@ describe("CredentialSBT", () => {
         );
     });
 
-    it("should not allow non-revoker to revoke", async () => {
+    it("should allow credential owner to revoke", async () => {
         await sbt.connect(admin).mintCredential(alice.address, "badge", "hash");
-        await expect(sbt.connect(alice).revokeCredential(1n)).to.be.reverted;
+        await sbt.connect(alice).revokeCredential(1n);
+        expect(await sbt.isRevoked(1n)).to.be.true;
+    });
+
+    it("should not allow unrelated account to revoke", async () => {
+        await sbt.connect(admin).mintCredential(alice.address, "badge", "hash");
+        await expect(sbt.connect(bob).revokeCredential(1n)).to.be.revertedWith(
+            "CredentialSBT: not authorized to revoke"
+        );
     });
 
     // ─── Soulbound ──────────────────────────────────────────────────

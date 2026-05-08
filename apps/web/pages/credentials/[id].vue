@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ChainCredential } from "~/composables/useChain";
-import { shortAddress } from "~/utils/address";
+import type { CredentialEvidenceAsset } from "~/utils/credentialMetadata";
 
 definePageMeta({ layout: "default" });
 
@@ -9,14 +9,10 @@ const chain = useChain();
 const id = computed(() => Number(route.params.id));
 const credential = ref<ChainCredential | null>(null);
 const loading = ref(true);
+const revoking = ref(false);
+const revokeDialogOpen = ref(false);
 const error = ref("");
 const { getDisplayName } = useAddressBook();
-
-const shortOwner = computed(() => {
-  const owner = credential.value?.owner;
-  if (!owner) return "";
-  return shortAddress(owner);
-});
 
 const starText = computed(() => {
   const stars = credential.value?.displayStars;
@@ -35,6 +31,13 @@ const summaryDescription = computed(() => {
   return `目前已有 ${item.voteCount} 人参与评价`;
 });
 
+const canCurrentUserRevoke = computed(() => {
+  const item = credential.value;
+  const account = chain.getAccount();
+  if (!item || !account || item.isRevoked) return false;
+  return item.owner.toLowerCase() === account.toLowerCase();
+});
+
 onMounted(async () => {
   try {
     credential.value = await chain.getCredential(id.value);
@@ -47,6 +50,48 @@ onMounted(async () => {
 
 async function onVoted() {
   credential.value = await chain.getCredential(id.value);
+}
+
+async function onRevoke() {
+  if (!credential.value || revoking.value) return;
+  revoking.value = true;
+  try {
+    await chain.revoke(credential.value.tokenId);
+    credential.value = await chain.getCredential(id.value);
+    revokeDialogOpen.value = false;
+  } catch (e: any) {
+    alert(e?.message ?? "吊销失败");
+  } finally {
+    revoking.value = false;
+  }
+}
+
+function openRevokeDialog() {
+  if (!canCurrentUserRevoke.value || revoking.value) return;
+  revokeDialogOpen.value = true;
+}
+
+function closeRevokeDialog() {
+  if (revoking.value) return;
+  revokeDialogOpen.value = false;
+}
+
+function evidenceActionLabel(item: CredentialEvidenceAsset) {
+  return "下载材料";
+}
+
+function evidenceActionIcon(item: CredentialEvidenceAsset) {
+  return "download";
+}
+
+function handleEvidenceAction(item: CredentialEvidenceAsset) {
+  const anchor = document.createElement("a");
+  anchor.href = item.url;
+  anchor.download = item.name || "credential-evidence";
+  anchor.rel = "noopener noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
 }
 </script>
 
@@ -85,25 +130,40 @@ async function onVoted() {
         <img :src="credential.image" :alt="credential.name" class="w-full max-h-80 object-cover" />
       </div>
 
-      <div class="flex items-center justify-end gap-2 border-t border-outline-variant/70 pt-3">
-        <template v-if="credential.isRevoked">
-          <span class="helper-text text-error inline-flex items-center gap-2">
-            <span class="material-symbols-outlined" aria-hidden="true">block</span>
-            这张证书已撤销，不能继续投票。
-          </span>
-        </template>
-        <template v-else-if="credential.hasCurrentUserVoted">
-          <span class="helper-text text-primary inline-flex items-center gap-2">
-            <span class="material-symbols-outlined" aria-hidden="true">task_alt</span>
-            你已经投过票，之后不能修改。
-          </span>
-        </template>
-        <template v-else>
-          <p class="helper-text mr-1">提交后不能修改，也不能再次投票。</p>
-          <VoteButton :token-id="credential.tokenId" @voted="onVoted" />
-        </template>
+      <div class="border-t border-outline-variant/70 pt-3">
+        <div class="flex flex-wrap items-center gap-4">
+          <div v-if="!credential.isRevoked && !credential.hasCurrentUserVoted" class="flex items-center gap-2">
+            <VoteButton :token-id="credential.tokenId" @voted="onVoted" />
+          </div>
+
+          <div v-if="canCurrentUserRevoke" class="flex items-center gap-2">
+            <button
+              type="button"
+              class="icon-button tonal-button text-error disabled:opacity-40"
+              :disabled="revoking"
+              aria-label="吊销证书"
+              title="吊销证书"
+              @click="openRevokeDialog"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">
+                {{ revoking ? "progress_activity" : "block" }}
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
     </section>
+
+    <ConfirmDialog
+      :open="revokeDialogOpen"
+      title="确认吊销这张证书？"
+      message="吊销后这张证书会立即失效，并且不能恢复。"
+      confirm-label="确认吊销"
+      confirm-tone="error"
+      :loading="revoking"
+      @cancel="closeRevokeDialog"
+      @confirm="onRevoke"
+    />
 
     <SectionBlock title="基本信息">
       <div class="info-list">
@@ -247,15 +307,14 @@ async function onVoted() {
             class="w-full h-44 rounded-2xl object-cover"
           />
 
-          <a
-            :href="item.url"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
             class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+            @click="handleEvidenceAction(item)"
           >
-            <span class="material-symbols-outlined text-base" aria-hidden="true">open_in_new</span>
-            打开材料
-          </a>
+            <span class="material-symbols-outlined text-base" aria-hidden="true">{{ evidenceActionIcon(item) }}</span>
+            {{ evidenceActionLabel(item) }}
+          </button>
         </div>
       </div>
     </SectionBlock>

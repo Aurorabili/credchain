@@ -26,7 +26,6 @@ const navItems = [
     <template v-if="route.path !== '/welcome'">
     <header class="hidden md:flex border-b border-outline-variant px-4 lg:px-6 h-16 items-center justify-between sticky top-0 bg-surface z-30">
       <NuxtLink to="/" class="text-xl font-bold tracking-tight text-primary inline-flex items-center gap-2">
-        <span class="material-symbols-outlined" aria-hidden="true">verified_user</span>
         CredChain
       </NuxtLink>
       <nav class="flex items-center gap-1">
@@ -51,7 +50,6 @@ const navItems = [
     <template v-if="route.path !== '/welcome'">
     <header class="md:hidden border-b border-outline-variant px-4 h-14 flex items-center justify-between sticky top-0 bg-surface z-30">
       <NuxtLink to="/" class="text-lg font-bold tracking-tight text-primary inline-flex items-center gap-1.5">
-        <span class="material-symbols-outlined" aria-hidden="true">verified_user</span>
         CredChain
       </NuxtLink>
       <div class="flex items-center gap-2">
