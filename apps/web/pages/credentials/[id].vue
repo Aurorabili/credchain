@@ -38,6 +38,13 @@ const canCurrentUserRevoke = computed(() => {
   return item.owner.toLowerCase() === account.toLowerCase();
 });
 
+const canCurrentUserVote = computed(() => {
+  const item = credential.value;
+  const account = chain.getAccount();
+  if (!item || !account || item.isRevoked || item.hasCurrentUserVoted) return false;
+  return item.owner.toLowerCase() !== account.toLowerCase();
+});
+
 onMounted(async () => {
   try {
     credential.value = await chain.getCredential(id.value);
@@ -132,7 +139,7 @@ function handleEvidenceAction(item: CredentialEvidenceAsset) {
 
       <div class="border-t border-outline-variant/70 pt-3">
         <div class="flex flex-wrap items-center gap-4">
-          <div v-if="!credential.isRevoked && !credential.hasCurrentUserVoted" class="flex items-center gap-2">
+          <div v-if="canCurrentUserVote" class="flex items-center gap-2">
             <VoteButton :token-id="credential.tokenId" @voted="onVoted" />
           </div>
 

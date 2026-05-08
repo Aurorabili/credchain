@@ -129,7 +129,7 @@ describe("ReputationCore", () => {
 
     it("uses voter reputation to increase vote weight", async () => {
         const tokenId1 = await mintCredentialForAlice("graduation", "hash1");
-        await sbt.connect(admin).mintCredential(alice.address, "training", "hash2");
+        await sbt.connect(admin).mintCredential(bob.address, "training", "hash2");
         const tokenId2 = 2n;
 
         await setKYCFor(alice, bob, carol);
@@ -143,6 +143,7 @@ describe("ReputationCore", () => {
         expect(await rep.getRawVoteSum(tokenId2)).to.equal(200n);
         expect(await rep.getWeightSum(tokenId2)).to.equal(20n);
         expect(await rep.getVoteCount(tokenId2)).to.equal(1n);
+        expect(await rep.getReputation(bob.address)).to.equal(200n);
     });
 
     it("clamps score at S_MAX while preserving raw vote statistics", async () => {
@@ -208,6 +209,15 @@ describe("ReputationCore", () => {
 
         await expect(rep.connect(bob).vote(tokenId, 1)).to.be.revertedWith(
             "ReputationCore: token revoked"
+        );
+    });
+
+    it("does not allow voting for your own credential", async () => {
+        const tokenId = await mintCredentialForAlice();
+        await setKYCFor(alice);
+
+        await expect(rep.connect(alice).vote(tokenId, 1)).to.be.revertedWith(
+            "ReputationCore: cannot vote for own credential"
         );
     });
 

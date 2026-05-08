@@ -97,6 +97,9 @@ contract ReputationCore is IReputationCore, AccessControl {
             "ReputationCore: already voted"
         );
 
+        address owner = IERC721(address(_sbtContract)).ownerOf(tokenId);
+        require(owner != msg.sender, "ReputationCore: cannot vote for own credential");
+
         // Current values
         int256 oldScore = _scores[tokenId];
         uint256 weight = _weightOf(msg.sender);
@@ -106,7 +109,6 @@ contract ReputationCore is IReputationCore, AccessControl {
         int256 newScore = _clamp(oldScore + delta, S_MIN, S_MAX);
 
         // Reputation delta for the token owner
-        address owner = IERC721(address(_sbtContract)).ownerOf(tokenId);
         int256 oldPhi = phi(oldScore);
         int256 newPhi = phi(newScore);
         int256 repDelta = newPhi - oldPhi;
