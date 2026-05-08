@@ -41,8 +41,8 @@ describe("ReputationCore", () => {
         await rep.waitForDeployment();
     });
 
-    async function mintCredentialForAlice(credentialType = "degree", metadataHash = "hash1") {
-        await sbt.connect(admin).mintCredential(alice.address, credentialType, metadataHash);
+    async function mintCredentialForAlice(businessType = "graduation", metadataCID = "hash1") {
+        await sbt.connect(admin).mintCredential(alice.address, businessType, metadataCID);
         return 1n;
     }
 
@@ -128,8 +128,8 @@ describe("ReputationCore", () => {
     });
 
     it("uses voter reputation to increase vote weight", async () => {
-        const tokenId1 = await mintCredentialForAlice("degree", "hash1");
-        await sbt.connect(admin).mintCredential(alice.address, "certificate", "hash2");
+        const tokenId1 = await mintCredentialForAlice("graduation", "hash1");
+        await sbt.connect(admin).mintCredential(alice.address, "training", "hash2");
         const tokenId2 = 2n;
 
         await setKYCFor(alice, bob, carol);
@@ -227,9 +227,9 @@ describe("ReputationCore", () => {
     });
 
     it("clamps voter weight at W_MAX", async () => {
-        await mintCredentialForAlice("degree", "hash1");
-        await sbt.connect(admin).mintCredential(alice.address, "certificate", "hash2");
-        await sbt.connect(admin).mintCredential(alice.address, "badge", "hash3");
+        await mintCredentialForAlice("graduation", "hash1");
+        await sbt.connect(admin).mintCredential(alice.address, "training", "hash2");
+        await sbt.connect(admin).mintCredential(alice.address, "honor", "hash3");
 
         await setKYCFor(bob);
         await rep.connect(bob).vote(1n, 1);
@@ -243,8 +243,8 @@ describe("ReputationCore", () => {
     // ─── Reputation consistency ───────────────────────────────────────
 
     it("maintains reputation consistency after multiple votes", async () => {
-        await mintCredentialForAlice("degree", "hash1");
-        await sbt.connect(admin).mintCredential(alice.address, "certificate", "hash2");
+        await mintCredentialForAlice("graduation", "hash1");
+        await sbt.connect(admin).mintCredential(alice.address, "training", "hash2");
         await setKYCFor(bob, carol);
 
         await rep.connect(bob).vote(1n, 1);

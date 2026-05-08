@@ -1,5 +1,13 @@
 export default defineNuxtConfig({
     ssr: false,
+    vite: {
+        optimizeDeps: {
+            include: [
+                'viem',
+                'viem/chains',
+            ]
+        }
+    },
     compatibilityDate: "2026-05-07",
     devtools: { enabled: true },
     modules: ["@nuxtjs/tailwindcss", "@nuxtjs/color-mode", "@vite-pwa/nuxt"],

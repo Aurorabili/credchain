@@ -26,8 +26,8 @@ describe("CredentialSBT", () => {
 
         const tokenId = 1n;
         expect(await sbt.ownerOf(tokenId)).to.equal(alice.address);
-        expect(await sbt.credentialType(tokenId)).to.equal("degree");
-        expect(await sbt.metadataHash(tokenId)).to.equal("QmTest123");
+        expect(await sbt.businessType(tokenId)).to.equal("degree");
+        expect(await sbt.metadataCID(tokenId)).to.equal("QmTest123");
         expect(await sbt.exists(tokenId)).to.be.true;
         await expect(tx)
             .to.emit(sbt, "CredentialMinted")
@@ -100,13 +100,13 @@ describe("CredentialSBT", () => {
     it("should revert on empty credential type", async () => {
         await expect(
             sbt.connect(admin).mintCredential(alice.address, "", "hash")
-        ).to.be.revertedWith("CredentialSBT: empty type");
+        ).to.be.revertedWith("CredentialSBT: empty business type");
     });
 
     it("should revert on empty metadata hash", async () => {
         await expect(
             sbt.connect(admin).mintCredential(alice.address, "badge", "")
-        ).to.be.revertedWith("CredentialSBT: empty hash");
+        ).to.be.revertedWith("CredentialSBT: empty metadata CID");
     });
 
     it("should revert tokenURI for non-existent token", async () => {

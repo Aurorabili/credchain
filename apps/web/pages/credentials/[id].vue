@@ -11,23 +11,11 @@ const loading = ref(true);
 const error = ref("");
 
 const typeLabel = computed(() => {
-  const value = credential.value?.credentialType;
-  const labels: Record<string, string> = {
-    degree: "学位",
-    certificate: "证书",
-    badge: "徽章",
-    license: "执照",
-  };
-  return value ? (labels[value] ?? value) : "";
+  return "证书";
 });
 
 const typeIcon = computed(() => {
-  const value = credential.value?.credentialType;
-  if (value === "degree") return "school";
-  if (value === "certificate") return "verified";
-  if (value === "badge") return "military_tech";
-  if (value === "license") return "workspace_premium";
-  return "id_card";
+  return "verified";
 });
 
 const shortOwner = computed(() => {
@@ -74,6 +62,9 @@ async function onVoted() {
             <div class="flex flex-wrap items-center gap-2">
               <span class="inline-flex items-center rounded-full bg-primary-container px-3 py-1 text-xs font-medium text-on-primary-container">
                 {{ typeLabel }}
+              </span>
+              <span class="inline-flex items-center rounded-full bg-tertiary-container px-3 py-1 text-xs font-medium text-on-tertiary-container">
+                {{ credential.businessType }}
               </span>
               <span
                 class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
@@ -137,8 +128,20 @@ async function onVoted() {
         <p class="mt-1 font-medium">#{{ credential.tokenId }}</p>
       </div>
       <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4">
+        <p class="text-xs text-on-surface-variant">链上标识</p>
+        <p class="mt-1 font-medium">SBT #{{ credential.tokenId }}</p>
+      </div>
+      <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4">
         <p class="text-xs text-on-surface-variant">持有人</p>
         <p class="mt-1 font-medium break-all">{{ shortOwner }}</p>
+      </div>
+      <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4 sm:col-span-2">
+        <p class="text-xs text-on-surface-variant">业务类型</p>
+        <p class="mt-1 text-sm break-all">{{ credential.businessType }}</p>
+      </div>
+      <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4 sm:col-span-2">
+        <p class="text-xs text-on-surface-variant">签发方</p>
+        <p class="mt-1 text-sm break-all">{{ credential.issuerName }}</p>
       </div>
       <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4 sm:col-span-2">
         <p class="text-xs text-on-surface-variant">链上地址</p>
@@ -146,7 +149,7 @@ async function onVoted() {
       </div>
       <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4 sm:col-span-2">
         <p class="text-xs text-on-surface-variant">Metadata CID</p>
-        <p class="mt-1 text-sm break-all">{{ credential.metadataHash }}</p>
+        <p class="mt-1 text-sm break-all">{{ credential.metadataCID }}</p>
       </div>
       <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4 sm:col-span-2">
         <p class="text-xs text-on-surface-variant">Token URI</p>
@@ -177,6 +180,58 @@ async function onVoted() {
         >
           <p class="text-xs text-on-surface-variant">{{ attribute.label }}</p>
           <p class="mt-1 text-sm font-medium break-words">{{ attribute.value }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="credential.businessFields.length" class="rounded-[24px] border border-outline-variant bg-surface p-4">
+      <h2 class="text-sm font-semibold">业务字段</h2>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        <div
+          v-for="field in credential.businessFields"
+          :key="`${field.name}:${field.value}`"
+          class="rounded-2xl bg-surface-container px-4 py-3"
+        >
+          <p class="text-xs text-on-surface-variant">{{ field.name }}</p>
+          <p class="mt-1 text-sm font-medium break-words">{{ field.value }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="credential.evidence.length" class="rounded-[24px] border border-outline-variant bg-surface p-4">
+      <h2 class="text-sm font-semibold">佐证材料</h2>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div
+          v-for="item in credential.evidence"
+          :key="item.cid"
+          class="rounded-2xl bg-surface-container p-4 space-y-3"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-medium break-all">{{ item.name }}</p>
+              <p class="mt-1 text-xs text-on-surface-variant">{{ item.mimeType }}</p>
+            </div>
+            <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">
+              {{ item.kind === "image" ? "image" : item.kind === "document" ? "description" : "attach_file" }}
+            </span>
+          </div>
+
+          <img
+            v-if="item.kind === 'image'"
+            :src="item.url"
+            :alt="item.name"
+            class="w-full h-44 rounded-2xl object-cover border border-outline-variant"
+          />
+
+          <a
+            :href="item.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            <span class="material-symbols-outlined text-base" aria-hidden="true">open_in_new</span>
+            打开材料
+          </a>
         </div>
       </div>
     </section>

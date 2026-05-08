@@ -5,6 +5,13 @@ import {
     totalSupply, getTokenIds, getCredentialSummaries, getCredentialDetail,
 } from "./useViem";
 import { PARAMS } from "~/config/chain";
+import type {
+    CredentialBusinessField,
+    CredentialEvidenceAsset,
+    CredentialEvidenceReference,
+    CredentialMetadataDocument,
+} from "~/utils/credentialMetadata";
+import { getFile, getMetadata, isMockIpfsCid } from "~/utils/mockIpfs";
 
 export interface ChainCredentialAttribute {
     label: string;
@@ -14,8 +21,9 @@ export interface ChainCredentialAttribute {
 export interface ChainCredential {
     tokenId: number;
     owner: `0x${string}`;
-    credentialType: string;
-    metadataHash: string;
+    businessType: string;
+    displayType: "certificate";
+    metadataCID: string;
     tokenUri: string;
     metadataUrl: string;
     score: number;
@@ -30,11 +38,15 @@ export interface ChainCredential {
     displayScore: number;
     displayStars: number;
     displayLabel: string;
+    issuerName: string;
+    recipientWallet: `0x${string}`;
     name: string;
     description: string;
     image: string;
     issuedAt: string;
     attributes: ChainCredentialAttribute[];
+    businessFields: CredentialBusinessField[];
+    evidence: CredentialEvidenceAsset[];
 }
 
 export interface ChainStats {
@@ -55,14 +67,6 @@ const SCORE_SCALE = 20;
 let _credentialCache: { data: ChainCredential[]; ts: number } | null = null;
 const CACHE_TTL = 30_000; // 30 seconds
 
-interface CredentialMetadataPayload {
-    name?: unknown;
-    description?: unknown;
-    image?: unknown;
-    issuedAt?: unknown;
-    attributes?: Array<{ trait_type?: unknown; value?: unknown }>;
-}
-
 interface DisplayScoreMetrics {
     baseDisplayScore: number;
     displayScore: number;
@@ -81,12 +85,14 @@ function toGatewayUrl(uriOrHash: string): string {
     return `https://ipfs.io/ipfs/${uriOrHash}`;
 }
 
-function credentialTypeLabel(type: string): string {
+function businessTypeLabel(type: string): string {
     const labels: Record<string, string> = {
-        degree: "学位",
-        certificate: "证书",
-        badge: "徽章",
-        license: "执照",
+        graduation: "毕业成就",
+        volunteer: "志愿服务",
+        internship: "实习经历",
+        honor: "荣誉奖项",
+        training: "培训证明",
+        custom: "自定义业务",
     };
     return labels[type] ?? type;
 }
@@ -100,6 +106,35 @@ function normalizeMetadataValue(value: unknown): string {
     if (typeof value === "string") return value;
     if (typeof value === "number" || typeof value === "boolean") return String(value);
     return JSON.stringify(value);
+}
+
+function extractCid(tokenUri: string, metadataCID: string): string {
+    if (metadataCID) return metadataCID;
+    if (tokenUri.startsWith("ipfs://")) return tokenUri.slice("ipfs://".length);
+    return tokenUri;
+}
+
+async function resolveEvidenceAssets(evidence: CredentialEvidenceReference[]) {
+    const resolved = await Promise.all(
+        evidence.map(async (item) => {
+            if (isMockIpfsCid(item.cid)) {
+                const file = await getFile(item.cid);
+                if (file) {
+                    return {
+                        ...item,
+                        url: file.dataUrl,
+                    } satisfies CredentialEvidenceAsset;
+                }
+            }
+
+            return {
+                ...item,
+                url: toGatewayUrl(item.cid),
+            } satisfies CredentialEvidenceAsset;
+        })
+    );
+
+    return resolved;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -138,8 +173,8 @@ function computeDisplayMetrics(rawVoteSum: number, weightSum: number, voteCount:
 function buildFallbackCredential(data: {
     tokenId: number;
     owner: `0x${string}`;
-    credentialType: string;
-    metadataHash: string;
+    businessType: string;
+    metadataCID: string;
     tokenUri?: string;
     score: number;
     rawVoteSum: number;
@@ -155,10 +190,11 @@ function buildFallbackCredential(data: {
     return {
         tokenId: data.tokenId,
         owner: data.owner,
-        credentialType: data.credentialType,
-        metadataHash: data.metadataHash,
+        businessType: data.businessType,
+        displayType: "certificate",
+        metadataCID: data.metadataCID,
         tokenUri: data.tokenUri ?? "",
-        metadataUrl: toGatewayUrl(data.tokenUri || data.metadataHash),
+        metadataUrl: isMockIpfsCid(data.metadataCID) ? "" : toGatewayUrl(data.tokenUri || data.metadataCID),
         score: data.score,
         rawVoteSum: data.rawVoteSum,
         weightSum: data.weightSum,
@@ -168,20 +204,31 @@ function buildFallbackCredential(data: {
         isLocked: data.isLocked ?? true,
         hasCurrentUserVoted: data.hasCurrentUserVoted ?? false,
         ...displayMetrics,
-        name: `${credentialTypeLabel(data.credentialType)} #${data.tokenId}`,
+        issuerName: "未标注签发方",
+        recipientWallet: data.owner,
+        name: `证书 #${data.tokenId}`,
         description: `持有人 ${shortAddress(data.owner)} 的链上凭证`,
         image: "",
         issuedAt: "",
         attributes: [
-            { label: "凭证类型", value: credentialTypeLabel(data.credentialType) },
-            { label: "元数据 CID", value: data.metadataHash },
+            { label: "展示类型", value: "证书" },
+            { label: "业务类型", value: businessTypeLabel(data.businessType) },
+            { label: "元数据 CID", value: data.metadataCID },
             { label: "参与投票人数", value: String(data.voteCount) },
         ],
+        businessFields: [],
+        evidence: [],
     };
 }
 
-async function fetchCredentialMetadata(tokenUri: string, fallbackHash: string): Promise<CredentialMetadataPayload | null> {
-    const metadataUrl = toGatewayUrl(tokenUri || fallbackHash);
+async function fetchCredentialMetadata(tokenUri: string, metadataCID: string): Promise<CredentialMetadataDocument | null> {
+    const cid = extractCid(tokenUri, metadataCID);
+    if (isMockIpfsCid(cid)) {
+        const document = await getMetadata(cid);
+        if (document) return document;
+    }
+
+    const metadataUrl = toGatewayUrl(tokenUri || metadataCID);
     if (!metadataUrl) return null;
 
     const controller = new AbortController();
@@ -189,7 +236,7 @@ async function fetchCredentialMetadata(tokenUri: string, fallbackHash: string): 
     try {
         const response = await fetch(metadataUrl, { signal: controller.signal });
         if (!response.ok) return null;
-        return await response.json() as CredentialMetadataPayload;
+        return await response.json() as CredentialMetadataDocument;
     } catch {
         return null;
     } finally {
@@ -198,29 +245,38 @@ async function fetchCredentialMetadata(tokenUri: string, fallbackHash: string): 
 }
 
 async function enrichCredentialWithMetadata(base: ChainCredential): Promise<ChainCredential> {
-    const payload = await fetchCredentialMetadata(base.tokenUri, base.metadataHash);
+    const payload = await fetchCredentialMetadata(base.tokenUri, base.metadataCID);
     if (!payload) return base;
 
-    const name = normalizeMetadataValue(payload.name) || base.name;
-    const description = normalizeMetadataValue(payload.description) || base.description;
-    const imageRaw = normalizeMetadataValue(payload.image);
-    const issuedAt = normalizeMetadataValue(payload.issuedAt);
-    const attributes = Array.isArray(payload.attributes)
-        ? payload.attributes
-            .map((attribute) => ({
-                label: normalizeMetadataValue(attribute?.trait_type),
-                value: normalizeMetadataValue(attribute?.value),
-            }))
-            .filter((attribute) => attribute.label && attribute.value)
-        : base.attributes;
+    const evidence = await resolveEvidenceAssets(payload.evidence ?? []);
+    const leadImage = evidence.find((item) => item.kind === "image")?.url ?? "";
+    const businessFields = Array.isArray(payload.fields)
+        ? payload.fields.filter((field) => field.name && field.value)
+        : [];
+    const attributes = [
+        { label: "展示类型", value: "证书" },
+        { label: "业务类型", value: businessTypeLabel(payload.businessType || base.businessType) },
+        { label: "签发方", value: normalizeMetadataValue(payload.issuer?.name) || base.issuerName },
+        { label: "元数据 CID", value: base.metadataCID },
+        { label: "佐证材料数量", value: String(evidence.length) },
+        ...businessFields.map((field) => ({
+            label: field.name,
+            value: field.value,
+        })),
+    ].filter((attribute) => attribute.label && attribute.value);
 
     return {
         ...base,
-        name,
-        description,
-        image: imageRaw ? toGatewayUrl(imageRaw) : base.image,
-        issuedAt,
+        businessType: payload.businessType || base.businessType,
+        issuerName: normalizeMetadataValue(payload.issuer?.name) || base.issuerName,
+        recipientWallet: payload.recipient?.wallet || base.recipientWallet,
+        name: normalizeMetadataValue(payload.title) || base.name,
+        description: normalizeMetadataValue(payload.description) || base.description,
+        image: leadImage || base.image,
+        issuedAt: normalizeMetadataValue(payload.issuedAt),
         attributes,
+        businessFields,
+        evidence,
     };
 }
 
@@ -280,8 +336,8 @@ export function useChain() {
         const credential = buildFallbackCredential({
             tokenId,
             owner: detail.owner,
-            credentialType: detail.credentialType,
-            metadataHash: detail.metadataHash,
+            businessType: detail.businessType,
+            metadataCID: detail.metadataCID,
             tokenUri: detail.tokenUri,
             score: Number(detail.score),
             rawVoteSum: Number(detail.rawVoteSum),
@@ -305,8 +361,8 @@ export function useChain() {
             buildFallbackCredential({
                 tokenId: Number(credential.tokenId),
                 owner: credential.owner,
-                credentialType: credential.credentialType,
-                metadataHash: credential.metadataHash,
+                businessType: credential.businessType,
+                metadataCID: credential.metadataCID,
                 score: Number(credential.score),
                 rawVoteSum: Number(credential.rawVoteSum),
                 weightSum: Number(credential.weightSum),
@@ -325,10 +381,10 @@ export function useChain() {
         _credentialCache = null;
     }
 
-    async function mint(credentialType: string, metadataHash: string): Promise<void> {
+    async function mint(businessType: string, metadataCID: string): Promise<void> {
         const addr = _account.value;
         if (!addr) throw new Error("Wallet not connected");
-        const hash = await chainMint(addr, credentialType, metadataHash);
+        const hash = await chainMint(addr, businessType, metadataCID);
         await waitForTx(hash);
         _credentialCache = null;
     }

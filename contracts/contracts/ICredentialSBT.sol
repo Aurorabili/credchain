@@ -10,8 +10,8 @@ interface ICredentialSBT {
     event CredentialMinted(
         uint256 indexed tokenId,
         address indexed to,
-        string credentialType,
-        string metadataHash
+        string businessType,
+        string metadataCID
     );
 
     /// @notice Emitted when a credential is revoked
@@ -19,13 +19,13 @@ interface ICredentialSBT {
 
     /// @notice Mint a new credential SBT to `to`
     /// @param to Recipient address (must be KYC-verified)
-    /// @param credentialType Type identifier for the credential
-    /// @param metadataHash IPFS CID hash of the credential metadata JSON
+    /// @param businessType Business classification for the credential
+    /// @param metadataCID IPFS CID hash of the credential metadata JSON
     /// @return tokenId The minted token ID
     function mintCredential(
         address to,
-        string calldata credentialType,
-        string calldata metadataHash
+        string calldata businessType,
+        string calldata metadataCID
     ) external returns (uint256 tokenId);
 
     /// @notice Revoke a credential SBT (only admin or issuer)
@@ -34,11 +34,11 @@ interface ICredentialSBT {
     /// @notice Check if a token exists
     function exists(uint256 tokenId) external view returns (bool);
 
-    /// @notice Get the credential type for a token
-    function credentialType(uint256 tokenId) external view returns (string memory);
+    /// @notice Get the business type for a token
+    function businessType(uint256 tokenId) external view returns (string memory);
 
-    /// @notice Get the metadata hash (IPFS CID) for a token
-    function metadataHash(uint256 tokenId) external view returns (string memory);
+    /// @notice Get the metadata CID (IPFS CID) for a token
+    function metadataCID(uint256 tokenId) external view returns (string memory);
 
     /// @notice Check if a token has been revoked
     function isRevoked(uint256 tokenId) external view returns (bool);

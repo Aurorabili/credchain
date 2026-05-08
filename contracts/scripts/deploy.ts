@@ -32,8 +32,8 @@ async function main() {
     console.log("Granting roles... Done.");
 
     // 4. Mint a sample credential for testing
-    await sbt.mintCredential(admin.address, "degree", "QmSample1");
-    await sbt.mintCredential(admin.address, "certificate", "QmSample2");
+    await sbt.mintCredential(admin.address, "graduation", "QmSample1");
+    await sbt.mintCredential(admin.address, "volunteer", "QmSample2");
     console.log("Minted 2 sample credentials.");
 
     // 5. Enable KYC for admin

@@ -28,8 +28,8 @@ const reputationCoreAbi = ReputationCoreABI.abi;
 export interface CredentialSummarySnapshot {
     tokenId: bigint;
     owner: `0x${string}`;
-    credentialType: string;
-    metadataHash: string;
+    businessType: string;
+    metadataCID: string;
     score: bigint;
     rawVoteSum: bigint;
     weightSum: bigint;
@@ -182,7 +182,7 @@ export async function getCredentialType(tokenId: bigint): Promise<string> {
     return publicClient.readContract({
         address: credentialSbtAddress,
         abi: credentialSbtAbi,
-        functionName: "credentialType",
+        functionName: "businessType",
         args: [tokenId],
     }) as Promise<string>;
 }
@@ -191,7 +191,7 @@ export async function getMetadataHash(tokenId: bigint): Promise<string> {
     return publicClient.readContract({
         address: credentialSbtAddress,
         abi: credentialSbtAbi,
-        functionName: "metadataHash",
+        functionName: "metadataCID",
         args: [tokenId],
     }) as Promise<string>;
 }
@@ -244,13 +244,13 @@ export async function getCredentialSummaries(tokenIds: bigint[]): Promise<Creden
             {
                 address: credentialSbtAddress,
                 abi: credentialSbtAbi,
-                functionName: "credentialType" as const,
+                functionName: "businessType" as const,
                 args: [tokenId],
             },
             {
                 address: credentialSbtAddress,
                 abi: credentialSbtAbi,
-                functionName: "metadataHash" as const,
+                functionName: "metadataCID" as const,
                 args: [tokenId],
             },
             {
@@ -291,8 +291,8 @@ export async function getCredentialSummaries(tokenIds: bigint[]): Promise<Creden
         return {
             tokenId,
             owner: results[offset] as `0x${string}`,
-            credentialType: results[offset + 1] as string,
-            metadataHash: results[offset + 2] as string,
+            businessType: results[offset + 1] as string,
+            metadataCID: results[offset + 2] as string,
             score: results[offset + 3] as bigint,
             rawVoteSum: results[offset + 4] as bigint,
             weightSum: results[offset + 5] as bigint,
@@ -316,13 +316,13 @@ export async function getCredentialDetail(
         {
             address: credentialSbtAddress,
             abi: credentialSbtAbi,
-            functionName: "credentialType",
+            functionName: "businessType",
             args: [tokenId],
         },
         {
             address: credentialSbtAddress,
             abi: credentialSbtAbi,
-            functionName: "metadataHash",
+            functionName: "metadataCID",
             args: [tokenId],
         },
         {
@@ -386,8 +386,8 @@ export async function getCredentialDetail(
     return {
         tokenId,
         owner,
-        credentialType: results[1] as string,
-        metadataHash: results[2] as string,
+        businessType: results[1] as string,
+        metadataCID: results[2] as string,
         tokenUri: results[3] as string,
         score: results[4] as bigint,
         rawVoteSum: results[5] as bigint,
@@ -417,8 +417,8 @@ export async function vote(tokenId: bigint, direction: 1 | -1): Promise<`0x${str
 
 export async function mintCredential(
     to: `0x${string}`,
-    credentialType: string,
-    metadataHash: string
+    businessType: string,
+    metadataCID: string
 ): Promise<`0x${string}`> {
     if (!walletClient) throw new Error("Wallet not connected");
     const [address] = await walletClient.requestAddresses();
@@ -427,7 +427,7 @@ export async function mintCredential(
         address: credentialSbtAddress,
         abi: credentialSbtAbi,
         functionName: "mintCredential",
-        args: [to, credentialType, metadataHash],
+        args: [to, businessType, metadataCID],
     });
     return hash;
 }

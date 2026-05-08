@@ -13,7 +13,7 @@
     "@vite-pwa/nuxt": "^1.1.1",
     "@wagmi/connectors": "^5.0.0",
     "@wagmi/core": "^2.0.0",
-    "nuxt": "^4.0.0",
+    "nuxt": "4.4.2",
     "viem": "^2.0.0",
     "vue": "^3.5.0"
   },

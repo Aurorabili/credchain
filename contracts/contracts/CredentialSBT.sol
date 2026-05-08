@@ -24,8 +24,8 @@ contract CredentialSBT is
 
     uint256 private _nextTokenId;
 
-    mapping(uint256 => string) private _credentialTypes;
-    mapping(uint256 => string) private _metadataHashes;
+    mapping(uint256 => string) private _businessTypes;
+    mapping(uint256 => string) private _metadataCIDs;
     mapping(uint256 => bool) private _revoked;
 
     constructor(address admin) ERC721("CredChain SBT", "CRED") {
@@ -47,19 +47,19 @@ contract CredentialSBT is
     /// @inheritdoc ICredentialSBT
     function mintCredential(
         address to,
-        string calldata type_,
-        string calldata hash_
+        string calldata businessType_,
+        string calldata metadataCID_
     ) external onlyRole(MINTER_ROLE) returns (uint256 tokenId) {
         require(to != address(0), "CredentialSBT: mint to zero");
-        require(bytes(type_).length > 0, "CredentialSBT: empty type");
-        require(bytes(hash_).length > 0, "CredentialSBT: empty hash");
+        require(bytes(businessType_).length > 0, "CredentialSBT: empty business type");
+        require(bytes(metadataCID_).length > 0, "CredentialSBT: empty metadata CID");
 
         tokenId = ++_nextTokenId;
         _safeMint(to, tokenId);
-        _credentialTypes[tokenId] = type_;
-        _metadataHashes[tokenId] = hash_;
+        _businessTypes[tokenId] = businessType_;
+        _metadataCIDs[tokenId] = metadataCID_;
 
-        emit CredentialMinted(tokenId, to, type_, hash_);
+        emit CredentialMinted(tokenId, to, businessType_, metadataCID_);
         emit Locked(tokenId);
     }
 
@@ -79,15 +79,15 @@ contract CredentialSBT is
     }
 
     /// @inheritdoc ICredentialSBT
-    function credentialType(uint256 tokenId) external view returns (string memory) {
+    function businessType(uint256 tokenId) external view returns (string memory) {
         _requireOwned(tokenId);
-        return _credentialTypes[tokenId];
+        return _businessTypes[tokenId];
     }
 
     /// @inheritdoc ICredentialSBT
-    function metadataHash(uint256 tokenId) external view returns (string memory) {
+    function metadataCID(uint256 tokenId) external view returns (string memory) {
         _requireOwned(tokenId);
-        return _metadataHashes[tokenId];
+        return _metadataCIDs[tokenId];
     }
 
     /// @inheritdoc ICredentialSBT
@@ -99,8 +99,8 @@ contract CredentialSBT is
     /// @notice Override tokenURI to return an IPFS gateway URL
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
-        string memory hash_ = _metadataHashes[tokenId];
-        return string(abi.encodePacked("ipfs://", hash_));
+        string memory metadataCID_ = _metadataCIDs[tokenId];
+        return string(abi.encodePacked("ipfs://", metadataCID_));
     }
 
     // ─── Transfers disabled (soulbound) ───────────────────────────────

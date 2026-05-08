@@ -12,7 +12,11 @@ export interface CredentialEvidenceReference {
     size: number;
 }
 
-export interface CredentialMetadata {
+export interface CredentialEvidenceAsset extends CredentialEvidenceReference {
+    url: string;
+}
+
+export interface CredentialMetadataDocument {
     version: "1.0";
     displayType: "certificate";
     businessType: string;
@@ -30,18 +34,17 @@ export interface CredentialMetadata {
     evidence: CredentialEvidenceReference[];
 }
 
-export interface SBTView {
-    tokenId: bigint;
-    owner: `0x${string}`;
-    businessType: string;
-    metadataCID: string;
-    score: bigint;
-    isRevoked: boolean;
+export function inferEvidenceKind(mimeType: string): CredentialEvidenceReference["kind"] {
+    if (mimeType.startsWith("image/")) return "image";
+    if (
+        mimeType === "application/pdf" ||
+        mimeType.includes("word") ||
+        mimeType.includes("excel") ||
+        mimeType.includes("powerpoint") ||
+        mimeType.startsWith("text/")
+    ) {
+        return "document";
+    }
+    return "file";
 }
 
-export interface ReputationView {
-    account: `0x${string}`;
-    reputation: bigint;
-    weight: bigint;
-    kycVerified: boolean;
-}
