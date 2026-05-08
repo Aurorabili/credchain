@@ -4,6 +4,7 @@ import {
     mintCredential as chainMint, waitForTx,
     totalSupply, getTokenIds, getCredentialSummaries, getCredentialDetail,
 } from "./useViem";
+import { PARAMS } from "~/config/chain";
 
 export interface ChainCredentialAttribute {
     label: string;
@@ -18,9 +19,17 @@ export interface ChainCredential {
     tokenUri: string;
     metadataUrl: string;
     score: number;
+    rawVoteSum: number;
+    weightSum: number;
+    voteCount: number;
     ownerReputation: number;
     isRevoked: boolean;
     isLocked: boolean;
+    hasCurrentUserVoted: boolean;
+    baseDisplayScore: number;
+    displayScore: number;
+    displayStars: number;
+    displayLabel: string;
     name: string;
     description: string;
     image: string;
@@ -38,6 +47,9 @@ export interface ChainStats {
 const STORAGE_KEY = "credchain:connected";
 const _connected = ref(false);
 const _account = ref<`0x${string}` | null>(null);
+const DISPLAY_PRIOR = 50;
+const DISPLAY_SMOOTHING = 12;
+const SCORE_SCALE = 20;
 
 // ─── In-memory cache with TTL ───────────────────────────────────
 let _credentialCache: { data: ChainCredential[]; ts: number } | null = null;
@@ -49,6 +61,13 @@ interface CredentialMetadataPayload {
     image?: unknown;
     issuedAt?: unknown;
     attributes?: Array<{ trait_type?: unknown; value?: unknown }>;
+}
+
+interface DisplayScoreMetrics {
+    baseDisplayScore: number;
+    displayScore: number;
+    displayStars: number;
+    displayLabel: string;
 }
 
 function toGatewayUrl(uriOrHash: string): string {
@@ -83,6 +102,39 @@ function normalizeMetadataValue(value: unknown): string {
     return JSON.stringify(value);
 }
 
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+}
+
+function round(value: number, digits = 1): number {
+    const factor = 10 ** digits;
+    return Math.round(value * factor) / factor;
+}
+
+function getDisplayLabel(score: number): string {
+    if (score >= 85) return "信誉极好";
+    if (score >= 70) return "信誉良好";
+    if (score >= 55) return "信誉稳定";
+    if (score >= 40) return "信誉一般";
+    return "信誉待观察";
+}
+
+function computeDisplayMetrics(rawVoteSum: number, weightSum: number, voteCount: number): DisplayScoreMetrics {
+    const alpha = Number(PARAMS.alpha);
+    const normalizedMean = weightSum > 0 ? clamp(rawVoteSum / (alpha * weightSum), -1, 1) : 0;
+    const baseDisplayScore = clamp(50 * (1 + normalizedMean), 0, 100);
+    const displayScore = (DISPLAY_SMOOTHING * DISPLAY_PRIOR + voteCount * baseDisplayScore)
+        / (DISPLAY_SMOOTHING + voteCount);
+    const roundedDisplayScore = round(displayScore);
+
+    return {
+        baseDisplayScore: round(baseDisplayScore),
+        displayScore: roundedDisplayScore,
+        displayStars: round(clamp(roundedDisplayScore / SCORE_SCALE, 0, 5)),
+        displayLabel: getDisplayLabel(roundedDisplayScore),
+    };
+}
+
 function buildFallbackCredential(data: {
     tokenId: number;
     owner: `0x${string}`;
@@ -90,10 +142,16 @@ function buildFallbackCredential(data: {
     metadataHash: string;
     tokenUri?: string;
     score: number;
+    rawVoteSum: number;
+    weightSum: number;
+    voteCount: number;
     ownerReputation?: number;
     isRevoked: boolean;
     isLocked?: boolean;
+    hasCurrentUserVoted?: boolean;
 }): ChainCredential {
+    const displayMetrics = computeDisplayMetrics(data.rawVoteSum, data.weightSum, data.voteCount);
+
     return {
         tokenId: data.tokenId,
         owner: data.owner,
@@ -102,9 +160,14 @@ function buildFallbackCredential(data: {
         tokenUri: data.tokenUri ?? "",
         metadataUrl: toGatewayUrl(data.tokenUri || data.metadataHash),
         score: data.score,
+        rawVoteSum: data.rawVoteSum,
+        weightSum: data.weightSum,
+        voteCount: data.voteCount,
         ownerReputation: data.ownerReputation ?? 0,
         isRevoked: data.isRevoked,
         isLocked: data.isLocked ?? true,
+        hasCurrentUserVoted: data.hasCurrentUserVoted ?? false,
+        ...displayMetrics,
         name: `${credentialTypeLabel(data.credentialType)} #${data.tokenId}`,
         description: `持有人 ${shortAddress(data.owner)} 的链上凭证`,
         image: "",
@@ -112,6 +175,7 @@ function buildFallbackCredential(data: {
         attributes: [
             { label: "凭证类型", value: credentialTypeLabel(data.credentialType) },
             { label: "元数据 CID", value: data.metadataHash },
+            { label: "参与投票人数", value: String(data.voteCount) },
         ],
     };
 }
@@ -212,7 +276,7 @@ export function useChain() {
     async function getCredential(tokenId: number): Promise<ChainCredential> {
         const addr = _account.value;
         if (!addr) throw new Error("Wallet not connected");
-        const detail = await getCredentialDetail(BigInt(tokenId));
+        const detail = await getCredentialDetail(BigInt(tokenId), addr);
         const credential = buildFallbackCredential({
             tokenId,
             owner: detail.owner,
@@ -220,9 +284,13 @@ export function useChain() {
             metadataHash: detail.metadataHash,
             tokenUri: detail.tokenUri,
             score: Number(detail.score),
+            rawVoteSum: Number(detail.rawVoteSum),
+            weightSum: Number(detail.weightSum),
+            voteCount: Number(detail.voteCount),
             ownerReputation: Number(detail.ownerReputation),
             isRevoked: detail.isRevoked,
             isLocked: detail.isLocked,
+            hasCurrentUserVoted: detail.hasCurrentUserVoted,
         });
         return enrichCredentialWithMetadata(credential);
     }
@@ -240,9 +308,13 @@ export function useChain() {
                 credentialType: credential.credentialType,
                 metadataHash: credential.metadataHash,
                 score: Number(credential.score),
+                rawVoteSum: Number(credential.rawVoteSum),
+                weightSum: Number(credential.weightSum),
+                voteCount: Number(credential.voteCount),
                 isRevoked: credential.isRevoked,
             })
         );
+        list.sort((left, right) => right.displayScore - left.displayScore);
         _credentialCache = { data: list, ts: Date.now() };
         return list;
     }

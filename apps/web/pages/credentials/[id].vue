@@ -36,6 +36,11 @@ const shortOwner = computed(() => {
   return `${owner.slice(0, 6)}...${owner.slice(-4)}`;
 });
 
+const starText = computed(() => {
+  const stars = credential.value?.displayStars;
+  return stars == null ? "" : `${stars.toFixed(1)} / 5.0`;
+});
+
 onMounted(async () => {
   try {
     credential.value = await chain.getCredential(id.value);
@@ -86,14 +91,25 @@ async function onVoted() {
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 sm:min-w-[220px]">
+        <div class="grid grid-cols-2 gap-3 sm:min-w-[280px]">
           <div class="rounded-3xl bg-surface-container-high px-4 py-3">
-            <p class="text-xs text-on-surface-variant">凭证分数</p>
-            <p class="text-xl font-semibold mt-1">{{ credential.score }}</p>
+            <p class="text-xs text-on-surface-variant">展示信誉</p>
+            <p class="text-xl font-semibold mt-1">{{ credential.displayScore.toFixed(1) }}</p>
+            <p class="mt-1 text-xs text-on-surface-variant">{{ credential.displayLabel }} · {{ starText }}</p>
           </div>
           <div class="rounded-3xl bg-surface-container-high px-4 py-3">
             <p class="text-xs text-on-surface-variant">持有人声誉</p>
             <p class="text-xl font-semibold mt-1">{{ credential.ownerReputation }}</p>
+          </div>
+          <div class="rounded-3xl bg-surface-container-high px-4 py-3">
+            <p class="text-xs text-on-surface-variant">参与投票人数</p>
+            <p class="text-xl font-semibold mt-1">{{ credential.voteCount }}</p>
+            <p class="mt-1 text-xs text-on-surface-variant">贝叶斯平滑已启用</p>
+          </div>
+          <div class="rounded-3xl bg-surface-container-high px-4 py-3">
+            <p class="text-xs text-on-surface-variant">群体内部加权均值</p>
+            <p class="text-xl font-semibold mt-1">{{ credential.baseDisplayScore.toFixed(1) }}</p>
+            <p class="mt-1 text-xs text-on-surface-variant">未平滑展示基数</p>
           </div>
         </div>
       </div>
@@ -104,6 +120,18 @@ async function onVoted() {
     </section>
 
     <section class="grid gap-3 sm:grid-cols-2">
+      <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4">
+        <p class="text-xs text-on-surface-variant">原始链上分数</p>
+        <p class="mt-1 font-medium">{{ credential.score }}</p>
+      </div>
+      <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4">
+        <p class="text-xs text-on-surface-variant">累计投票权重</p>
+        <p class="mt-1 font-medium">{{ credential.weightSum }}</p>
+      </div>
+      <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4 sm:col-span-2">
+        <p class="text-xs text-on-surface-variant">未截断加权投票和</p>
+        <p class="mt-1 text-sm break-all">{{ credential.rawVoteSum }}</p>
+      </div>
       <div class="rounded-[24px] border border-outline-variant bg-surface px-4 py-4">
         <p class="text-xs text-on-surface-variant">Token ID</p>
         <p class="mt-1 font-medium">#{{ credential.tokenId }}</p>
@@ -159,9 +187,13 @@ async function onVoted() {
         <span class="material-symbols-outlined" aria-hidden="true">block</span>
         该凭证已被撤销，不能继续投票。
       </div>
+      <div v-else-if="credential.hasCurrentUserVoted" class="mt-3 flex items-center gap-2 text-primary text-sm">
+        <span class="material-symbols-outlined" aria-hidden="true">task_alt</span>
+        你已经为这张凭证投过票了。当前版本每个地址对同一凭证只统计一次有效投票。
+      </div>
       <div v-else class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="text-sm text-on-surface-variant">
-          你的投票会影响该凭证的可信度分数，并更新持有者声誉。
+          你的投票会影响该凭证的链上原始分数、展示信誉分，并更新持有者声誉。
         </div>
         <VoteButton :token-id="credential.tokenId" @voted="onVoted" />
       </div>

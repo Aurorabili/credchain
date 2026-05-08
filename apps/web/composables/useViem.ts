@@ -22,6 +22,8 @@ const chain: Chain = {
 
 const credentialSbtAddress = CONTRACTS.credentialSBT.address as `0x${string}`;
 const reputationCoreAddress = CONTRACTS.reputationCore.address as `0x${string}`;
+const credentialSbtAbi = CredentialSBTABI.abi;
+const reputationCoreAbi = ReputationCoreABI.abi;
 
 export interface CredentialSummarySnapshot {
     tokenId: bigint;
@@ -29,6 +31,9 @@ export interface CredentialSummarySnapshot {
     credentialType: string;
     metadataHash: string;
     score: bigint;
+    rawVoteSum: bigint;
+    weightSum: bigint;
+    voteCount: bigint;
     isRevoked: boolean;
 }
 
@@ -36,6 +41,7 @@ export interface CredentialDetailSnapshot extends CredentialSummarySnapshot {
     tokenUri: string;
     isLocked: boolean;
     ownerReputation: bigint;
+    hasCurrentUserVoted: boolean;
 }
 
 async function strictMulticall(contracts: Parameters<PublicClient["multicall"]>[0]["contracts"]) {
@@ -76,7 +82,7 @@ export function getPublicClient(): PublicClient {
 export async function getScore(tokenId: bigint): Promise<bigint> {
     return publicClient.readContract({
         address: reputationCoreAddress,
-        abi: ReputationCoreABI,
+        abi: reputationCoreAbi,
         functionName: "getScore",
         args: [tokenId],
     }) as Promise<bigint>;
@@ -85,16 +91,52 @@ export async function getScore(tokenId: bigint): Promise<bigint> {
 export async function getReputation(account: `0x${string}`): Promise<bigint> {
     return publicClient.readContract({
         address: reputationCoreAddress,
-        abi: ReputationCoreABI,
+        abi: reputationCoreAbi,
         functionName: "getReputation",
         args: [account],
     }) as Promise<bigint>;
 }
 
+export async function getRawVoteSum(tokenId: bigint): Promise<bigint> {
+    return publicClient.readContract({
+        address: reputationCoreAddress,
+        abi: reputationCoreAbi,
+        functionName: "getRawVoteSum",
+        args: [tokenId],
+    }) as Promise<bigint>;
+}
+
+export async function getWeightSum(tokenId: bigint): Promise<bigint> {
+    return publicClient.readContract({
+        address: reputationCoreAddress,
+        abi: reputationCoreAbi,
+        functionName: "getWeightSum",
+        args: [tokenId],
+    }) as Promise<bigint>;
+}
+
+export async function getVoteCount(tokenId: bigint): Promise<bigint> {
+    return publicClient.readContract({
+        address: reputationCoreAddress,
+        abi: reputationCoreAbi,
+        functionName: "getVoteCount",
+        args: [tokenId],
+    }) as Promise<bigint>;
+}
+
+export async function hasVoted(tokenId: bigint, account: `0x${string}`): Promise<boolean> {
+    return publicClient.readContract({
+        address: reputationCoreAddress,
+        abi: reputationCoreAbi,
+        functionName: "hasVoted",
+        args: [tokenId, account],
+    }) as Promise<boolean>;
+}
+
 export async function totalSupply(): Promise<bigint> {
     return publicClient.readContract({
         address: credentialSbtAddress,
-        abi: CredentialSBTABI,
+        abi: credentialSbtAbi,
         functionName: "totalSupply",
         args: [],
     }) as Promise<bigint>;
@@ -103,7 +145,7 @@ export async function totalSupply(): Promise<bigint> {
 export async function tokenByIndex(index: bigint): Promise<bigint> {
     return publicClient.readContract({
         address: credentialSbtAddress,
-        abi: CredentialSBTABI,
+        abi: credentialSbtAbi,
         functionName: "tokenByIndex",
         args: [index],
     }) as Promise<bigint>;
@@ -112,7 +154,7 @@ export async function tokenByIndex(index: bigint): Promise<bigint> {
 export async function getWeight(account: `0x${string}`): Promise<bigint> {
     return publicClient.readContract({
         address: reputationCoreAddress,
-        abi: ReputationCoreABI,
+        abi: reputationCoreAbi,
         functionName: "getWeight",
         args: [account],
     }) as Promise<bigint>;
@@ -121,7 +163,7 @@ export async function getWeight(account: `0x${string}`): Promise<bigint> {
 export async function isKYCVerified(account: `0x${string}`): Promise<boolean> {
     return publicClient.readContract({
         address: reputationCoreAddress,
-        abi: ReputationCoreABI,
+        abi: reputationCoreAbi,
         functionName: "isKYCVerified",
         args: [account],
     }) as Promise<boolean>;
@@ -130,7 +172,7 @@ export async function isKYCVerified(account: `0x${string}`): Promise<boolean> {
 export async function getOwnerOf(tokenId: bigint): Promise<`0x${string}`> {
     return publicClient.readContract({
         address: credentialSbtAddress,
-        abi: CredentialSBTABI,
+        abi: credentialSbtAbi,
         functionName: "ownerOf",
         args: [tokenId],
     }) as Promise<`0x${string}`>;
@@ -139,7 +181,7 @@ export async function getOwnerOf(tokenId: bigint): Promise<`0x${string}`> {
 export async function getCredentialType(tokenId: bigint): Promise<string> {
     return publicClient.readContract({
         address: credentialSbtAddress,
-        abi: CredentialSBTABI,
+        abi: credentialSbtAbi,
         functionName: "credentialType",
         args: [tokenId],
     }) as Promise<string>;
@@ -148,7 +190,7 @@ export async function getCredentialType(tokenId: bigint): Promise<string> {
 export async function getMetadataHash(tokenId: bigint): Promise<string> {
     return publicClient.readContract({
         address: credentialSbtAddress,
-        abi: CredentialSBTABI,
+        abi: credentialSbtAbi,
         functionName: "metadataHash",
         args: [tokenId],
     }) as Promise<string>;
@@ -157,7 +199,7 @@ export async function getMetadataHash(tokenId: bigint): Promise<string> {
 export async function getTokenURI(tokenId: bigint): Promise<string> {
     return publicClient.readContract({
         address: credentialSbtAddress,
-        abi: CredentialSBTABI,
+        abi: credentialSbtAbi,
         functionName: "tokenURI",
         args: [tokenId],
     }) as Promise<string>;
@@ -166,7 +208,7 @@ export async function getTokenURI(tokenId: bigint): Promise<string> {
 export async function isRevoked(tokenId: bigint): Promise<boolean> {
     return publicClient.readContract({
         address: credentialSbtAddress,
-        abi: CredentialSBTABI,
+        abi: credentialSbtAbi,
         functionName: "isRevoked",
         args: [tokenId],
     }) as Promise<boolean>;
@@ -179,7 +221,7 @@ export async function getTokenIds(total: bigint): Promise<bigint[]> {
     const results = await strictMulticall(
         Array.from({ length: count }, (_, index) => ({
             address: credentialSbtAddress,
-            abi: CredentialSBTABI,
+            abi: credentialSbtAbi,
             functionName: "tokenByIndex" as const,
             args: [BigInt(index)],
         }))
@@ -195,31 +237,49 @@ export async function getCredentialSummaries(tokenIds: bigint[]): Promise<Creden
         tokenIds.flatMap((tokenId) => ([
             {
                 address: credentialSbtAddress,
-                abi: CredentialSBTABI,
+                abi: credentialSbtAbi,
                 functionName: "ownerOf" as const,
                 args: [tokenId],
             },
             {
                 address: credentialSbtAddress,
-                abi: CredentialSBTABI,
+                abi: credentialSbtAbi,
                 functionName: "credentialType" as const,
                 args: [tokenId],
             },
             {
                 address: credentialSbtAddress,
-                abi: CredentialSBTABI,
+                abi: credentialSbtAbi,
                 functionName: "metadataHash" as const,
                 args: [tokenId],
             },
             {
                 address: reputationCoreAddress,
-                abi: ReputationCoreABI,
+                abi: reputationCoreAbi,
                 functionName: "getScore" as const,
                 args: [tokenId],
             },
             {
+                address: reputationCoreAddress,
+                abi: reputationCoreAbi,
+                functionName: "getRawVoteSum" as const,
+                args: [tokenId],
+            },
+            {
+                address: reputationCoreAddress,
+                abi: reputationCoreAbi,
+                functionName: "getWeightSum" as const,
+                args: [tokenId],
+            },
+            {
+                address: reputationCoreAddress,
+                abi: reputationCoreAbi,
+                functionName: "getVoteCount" as const,
+                args: [tokenId],
+            },
+            {
                 address: credentialSbtAddress,
-                abi: CredentialSBTABI,
+                abi: credentialSbtAbi,
                 functionName: "isRevoked" as const,
                 args: [tokenId],
             },
@@ -227,63 +287,98 @@ export async function getCredentialSummaries(tokenIds: bigint[]): Promise<Creden
     );
 
     return tokenIds.map((tokenId, index) => {
-        const offset = index * 5;
+        const offset = index * 8;
         return {
             tokenId,
             owner: results[offset] as `0x${string}`,
             credentialType: results[offset + 1] as string,
             metadataHash: results[offset + 2] as string,
             score: results[offset + 3] as bigint,
-            isRevoked: results[offset + 4] as boolean,
+            rawVoteSum: results[offset + 4] as bigint,
+            weightSum: results[offset + 5] as bigint,
+            voteCount: results[offset + 6] as bigint,
+            isRevoked: results[offset + 7] as boolean,
         };
     });
 }
 
-export async function getCredentialDetail(tokenId: bigint): Promise<CredentialDetailSnapshot> {
-    const results = await strictMulticall([
+export async function getCredentialDetail(
+    tokenId: bigint,
+    viewer?: `0x${string}` | null
+): Promise<CredentialDetailSnapshot> {
+    const contracts: Parameters<PublicClient["multicall"]>[0]["contracts"] = [
         {
             address: credentialSbtAddress,
-            abi: CredentialSBTABI,
+            abi: credentialSbtAbi,
             functionName: "ownerOf",
             args: [tokenId],
         },
         {
             address: credentialSbtAddress,
-            abi: CredentialSBTABI,
+            abi: credentialSbtAbi,
             functionName: "credentialType",
             args: [tokenId],
         },
         {
             address: credentialSbtAddress,
-            abi: CredentialSBTABI,
+            abi: credentialSbtAbi,
             functionName: "metadataHash",
             args: [tokenId],
         },
         {
             address: credentialSbtAddress,
-            abi: CredentialSBTABI,
+            abi: credentialSbtAbi,
             functionName: "tokenURI",
             args: [tokenId],
         },
         {
             address: reputationCoreAddress,
-            abi: ReputationCoreABI,
+            abi: reputationCoreAbi,
             functionName: "getScore",
             args: [tokenId],
         },
         {
+            address: reputationCoreAddress,
+            abi: reputationCoreAbi,
+            functionName: "getRawVoteSum",
+            args: [tokenId],
+        },
+        {
+            address: reputationCoreAddress,
+            abi: reputationCoreAbi,
+            functionName: "getWeightSum",
+            args: [tokenId],
+        },
+        {
+            address: reputationCoreAddress,
+            abi: reputationCoreAbi,
+            functionName: "getVoteCount",
+            args: [tokenId],
+        },
+        {
             address: credentialSbtAddress,
-            abi: CredentialSBTABI,
+            abi: credentialSbtAbi,
             functionName: "isRevoked",
             args: [tokenId],
         },
         {
             address: credentialSbtAddress,
-            abi: CredentialSBTABI,
+            abi: credentialSbtAbi,
             functionName: "locked",
             args: [tokenId],
         },
-    ]);
+    ];
+
+    if (viewer) {
+        contracts.push({
+            address: reputationCoreAddress,
+            abi: reputationCoreAbi,
+            functionName: "hasVoted",
+            args: [tokenId, viewer],
+        });
+    }
+
+    const results = await strictMulticall(contracts);
 
     const owner = results[0] as `0x${string}`;
     const ownerReputation = await getReputation(owner);
@@ -295,9 +390,13 @@ export async function getCredentialDetail(tokenId: bigint): Promise<CredentialDe
         metadataHash: results[2] as string,
         tokenUri: results[3] as string,
         score: results[4] as bigint,
-        isRevoked: results[5] as boolean,
-        isLocked: results[6] as boolean,
+        rawVoteSum: results[5] as bigint,
+        weightSum: results[6] as bigint,
+        voteCount: results[7] as bigint,
+        isRevoked: results[8] as boolean,
+        isLocked: results[9] as boolean,
         ownerReputation,
+        hasCurrentUserVoted: viewer ? (results[10] as boolean) : false,
     };
 }
 
@@ -309,7 +408,7 @@ export async function vote(tokenId: bigint, direction: 1 | -1): Promise<`0x${str
     const hash = await walletClient.writeContract({
         account: address,
         address: reputationCoreAddress,
-        abi: ReputationCoreABI,
+        abi: reputationCoreAbi,
         functionName: "vote",
         args: [tokenId, direction],
     });
@@ -326,7 +425,7 @@ export async function mintCredential(
     const hash = await walletClient.writeContract({
         account: address,
         address: credentialSbtAddress,
-        abi: CredentialSBTABI,
+        abi: credentialSbtAbi,
         functionName: "mintCredential",
         args: [to, credentialType, metadataHash],
     });

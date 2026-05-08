@@ -31,6 +31,18 @@ interface IReputationCore {
     /// @notice Get the current score of a token
     function getScore(uint256 tokenId) external view returns (int256);
 
+    /// @notice Get the uncapped weighted vote sum of a token
+    function getRawVoteSum(uint256 tokenId) external view returns (int256);
+
+    /// @notice Get the total accumulated voter weight of a token
+    function getWeightSum(uint256 tokenId) external view returns (uint256);
+
+    /// @notice Get the number of unique voters who have voted on a token
+    function getVoteCount(uint256 tokenId) external view returns (uint256);
+
+    /// @notice Check whether an account has already voted on a token
+    function hasVoted(uint256 tokenId, address account) external view returns (bool);
+
     /// @notice Get the current reputation of an account
     function getReputation(address account) external view returns (int256);
 

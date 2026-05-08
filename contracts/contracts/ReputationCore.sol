@@ -38,6 +38,10 @@ contract ReputationCore is IReputationCore, AccessControl {
 
     // ─── State ───────────────────────────────────────────────────────
     mapping(uint256 => int256) private _scores; // s_t: token score
+    mapping(uint256 => int256) private _rawVoteSums; // uncapped weighted vote sum
+    mapping(uint256 => uint256) private _weightSums; // sum of voter weights
+    mapping(uint256 => uint256) private _voteCounts; // number of unique voters
+    mapping(uint256 => mapping(address => bool)) private _hasVoted;
     mapping(address => int256) private _reputations; // R_a: cached reputation
     mapping(address => bool) private _kycVerified;
 
@@ -88,6 +92,10 @@ contract ReputationCore is IReputationCore, AccessControl {
             !_sbtContract.isRevoked(tokenId),
             "ReputationCore: token revoked"
         );
+        require(
+            !_hasVoted[tokenId][msg.sender],
+            "ReputationCore: already voted"
+        );
 
         // Current values
         int256 oldScore = _scores[tokenId];
@@ -104,6 +112,10 @@ contract ReputationCore is IReputationCore, AccessControl {
         int256 repDelta = newPhi - oldPhi;
 
         // Apply updates
+        _rawVoteSums[tokenId] = _rawVoteSums[tokenId] + delta;
+        _weightSums[tokenId] = _weightSums[tokenId] + weight;
+        _voteCounts[tokenId] = _voteCounts[tokenId] + 1;
+        _hasVoted[tokenId][msg.sender] = true;
         _scores[tokenId] = newScore;
         _reputations[owner] = _reputations[owner] + repDelta;
 
@@ -133,6 +145,26 @@ contract ReputationCore is IReputationCore, AccessControl {
     /// @inheritdoc IReputationCore
     function getScore(uint256 tokenId) external view returns (int256) {
         return _scores[tokenId];
+    }
+
+    /// @inheritdoc IReputationCore
+    function getRawVoteSum(uint256 tokenId) external view returns (int256) {
+        return _rawVoteSums[tokenId];
+    }
+
+    /// @inheritdoc IReputationCore
+    function getWeightSum(uint256 tokenId) external view returns (uint256) {
+        return _weightSums[tokenId];
+    }
+
+    /// @inheritdoc IReputationCore
+    function getVoteCount(uint256 tokenId) external view returns (uint256) {
+        return _voteCounts[tokenId];
+    }
+
+    /// @inheritdoc IReputationCore
+    function hasVoted(uint256 tokenId, address account) external view returns (bool) {
+        return _hasVoted[tokenId][account];
     }
 
     /// @inheritdoc IReputationCore

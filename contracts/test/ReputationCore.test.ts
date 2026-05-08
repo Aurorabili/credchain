@@ -10,6 +10,8 @@ describe("ReputationCore", () => {
     let alice: SignerWithAddress;
     let bob: SignerWithAddress;
     let carol: SignerWithAddress;
+    let dave: SignerWithAddress;
+    let voters: SignerWithAddress[];
 
     const ALPHA = 10n;
     const S_MIN = -100n;
@@ -19,14 +21,12 @@ describe("ReputationCore", () => {
     const C_PHI = 200n;
 
     beforeEach(async () => {
-        [admin, alice, bob, carol] = await hre.ethers.getSigners();
+        [admin, alice, bob, carol, dave, ...voters] = await hre.ethers.getSigners();
 
-        // Deploy SBT
         const sbtFactory = await hre.ethers.getContractFactory("CredentialSBT");
         sbt = (await sbtFactory.deploy(admin.address)) as CredentialSBT;
         await sbt.waitForDeployment();
 
-        // Deploy ReputationCore
         const repFactory = await hre.ethers.getContractFactory("ReputationCore");
         rep = (await repFactory.deploy(
             admin.address,
@@ -39,147 +39,237 @@ describe("ReputationCore", () => {
             C_PHI
         )) as ReputationCore;
         await rep.waitForDeployment();
-
-        // Grant MINTER to ReputationCore so it can mint via relay (or keep admin-only; we use admin for this test)
-        // In production ReputationCore might be a minter; here we skip and use admin directly.
     });
+
+    async function mintCredentialForAlice(credentialType = "degree", metadataHash = "hash1") {
+        await sbt.connect(admin).mintCredential(alice.address, credentialType, metadataHash);
+        return 1n;
+    }
+
+    async function setKYCFor(...accounts: SignerWithAddress[]) {
+        for (const account of accounts) {
+            await rep.connect(admin).setKYC(account.address, true);
+        }
+    }
+
+    async function createKycWalletVoters(count: number) {
+        const provider = hre.ethers.provider;
+        const created: Array<InstanceType<typeof hre.ethers.Wallet>> = [];
+
+        for (let index = 0; index < count; index += 1) {
+            const wallet = hre.ethers.Wallet.createRandom().connect(provider);
+            await admin.sendTransaction({
+                to: wallet.address,
+                value: hre.ethers.parseEther("1"),
+            });
+            await rep.connect(admin).setKYC(wallet.address, true);
+            created.push(wallet);
+        }
+
+        return created;
+    }
 
     // ─── KYC ──────────────────────────────────────────────────────────
 
-    it("should set and read KYC status", async () => {
+    it("sets and reads KYC status", async () => {
         await rep.connect(admin).setKYC(alice.address, true);
-        expect(await rep.isKYCVerified(alice.address)).to.be.true;
+        expect(await rep.isKYCVerified(alice.address)).to.equal(true);
 
         await rep.connect(admin).setKYC(alice.address, false);
-        expect(await rep.isKYCVerified(alice.address)).to.be.false;
+        expect(await rep.isKYCVerified(alice.address)).to.equal(false);
     });
 
-    it("should not allow non-admin to set KYC", async () => {
-        await expect(
-            rep.connect(alice).setKYC(alice.address, true)
-        ).to.be.reverted;
+    it("does not allow non-admin to set KYC", async () => {
+        await expect(rep.connect(alice).setKYC(alice.address, true)).to.be.reverted;
     });
 
     // ─── Phi function ─────────────────────────────────────────────────
 
-    it("should compute Phi correctly", async () => {
+    it("computes phi correctly", async () => {
         expect(await rep.phi(0n)).to.equal(0n);
         expect(await rep.phi(-10n)).to.equal(0n);
-        expect(await rep.phi(5n)).to.equal(10n); // K=2 * 5
-        expect(await rep.phi(200n)).to.equal(C_PHI); // capped
+        expect(await rep.phi(5n)).to.equal(10n);
+        expect(await rep.phi(200n)).to.equal(C_PHI);
     });
 
-    // ─── Vote ─────────────────────────────────────────────────────────
+    // ─── Vote & statistics ────────────────────────────────────────────
 
-    async function setupVoteScenario() {
-        // Both Alice and Bob are KYC-verified
-        await rep.connect(admin).setKYC(alice.address, true);
-        await rep.connect(admin).setKYC(bob.address, true);
-        // Alice mints 2 credentials
-        await sbt.connect(admin).mintCredential(alice.address, "degree", "hash1");
-        await sbt.connect(admin).mintCredential(alice.address, "cert", "hash2");
-    }
+    it("casts a vote and updates score, reputation, and voting statistics", async () => {
+        const tokenId = await mintCredentialForAlice();
+        await setKYCFor(bob);
 
-    it("should cast a vote and update score + reputation", async () => {
-        await setupVoteScenario();
-
-        // Bob votes +1 on token 1
-        const tx = await rep.connect(bob).vote(1n, 1);
-        const receipt = await tx.wait();
-
-        // Bob has 0 reputation -> weight = 1
-        // delta = alpha * weight * direction = 10 * 1 * 1 = 10
-        // score = 0 + 10 = 10
-        // phi(0)=0, phi(10)=min(2*10,200)=20
-        // repDelta = 20 - 0 = 20
-        expect(await rep.getScore(1n)).to.equal(10n);
-        expect(await rep.getReputation(alice.address)).to.equal(20n);
-        expect(await rep.getWeight(alice.address)).to.equal(20n);
+        const tx = await rep.connect(bob).vote(tokenId, 1);
 
         await expect(tx)
             .to.emit(rep, "Voted")
-            .withArgs(bob.address, 1n, 1, 10n, 20n);
+            .withArgs(bob.address, tokenId, 1, 10n, 20n);
+
+        expect(await rep.getScore(tokenId)).to.equal(10n);
+        expect(await rep.getRawVoteSum(tokenId)).to.equal(10n);
+        expect(await rep.getWeightSum(tokenId)).to.equal(1n);
+        expect(await rep.getVoteCount(tokenId)).to.equal(1n);
+        expect(await rep.hasVoted(tokenId, bob.address)).to.equal(true);
+        expect(await rep.getReputation(alice.address)).to.equal(20n);
+        expect(await rep.getWeight(alice.address)).to.equal(20n);
     });
 
-    it("should downvote and reduce score", async () => {
-        await setupVoteScenario();
+    it("tracks mixed votes from distinct KYC voters", async () => {
+        const tokenId = await mintCredentialForAlice();
+        await setKYCFor(bob, carol, alice);
 
-    // Bob votes twice on token 1: weight stays 1 (Bob has 0 reputation)
-        expect(await rep.getScore(1n)).to.equal(20n); // 0+10+10
+        await rep.connect(bob).vote(tokenId, 1);
+        await rep.connect(carol).vote(tokenId, -1);
 
-        // Carol (fresh, weight=1) downvotes: score -= 10
-        await rep.connect(admin).setKYC(carol.address, true);
-        await rep.connect(carol).vote(1n, -1);
-        expect(await rep.getScore(1n)).to.equal(10n);
+        expect(await rep.getScore(tokenId)).to.equal(0n);
+        expect(await rep.getRawVoteSum(tokenId)).to.equal(0n);
+        expect(await rep.getWeightSum(tokenId)).to.equal(2n);
+        expect(await rep.getVoteCount(tokenId)).to.equal(2n);
+        expect(await rep.getReputation(alice.address)).to.equal(0n);
     });
 
-    it("should clamp score at S_MIN and S_MAX", async () => {
-        await setupVoteScenario();
+    it("uses voter reputation to increase vote weight", async () => {
+        const tokenId1 = await mintCredentialForAlice("degree", "hash1");
+        await sbt.connect(admin).mintCredential(alice.address, "certificate", "hash2");
+        const tokenId2 = 2n;
 
-        // Bob votes many times down on token 1
-        for (let i = 0; i < 20; i++) {
-            await rep.connect(bob).vote(1n, -1);
+        await setKYCFor(alice, bob, carol);
+
+        await rep.connect(bob).vote(tokenId1, 1);
+        expect(await rep.getReputation(alice.address)).to.equal(20n);
+
+        await rep.connect(alice).vote(tokenId2, 1);
+
+        expect(await rep.getScore(tokenId2)).to.equal(200n);
+        expect(await rep.getRawVoteSum(tokenId2)).to.equal(200n);
+        expect(await rep.getWeightSum(tokenId2)).to.equal(20n);
+        expect(await rep.getVoteCount(tokenId2)).to.equal(1n);
+    });
+
+    it("clamps score at S_MAX while preserving raw vote statistics", async () => {
+        const tokenId = await mintCredentialForAlice();
+        const batch = await createKycWalletVoters(105);
+
+        for (const voter of batch) {
+            await rep.connect(voter).vote(tokenId, 1);
         }
-        expect(await rep.getScore(1n)).to.equal(S_MIN);
+
+        expect(await rep.getScore(tokenId)).to.equal(S_MAX);
+        expect(await rep.getRawVoteSum(tokenId)).to.equal(1050n);
+        expect(await rep.getWeightSum(tokenId)).to.equal(105n);
+        expect(await rep.getVoteCount(tokenId)).to.equal(105n);
+        expect(await rep.getReputation(alice.address)).to.equal(C_PHI);
     });
 
-    it("should not allow non-KYC to vote", async () => {
-        await sbt.connect(admin).mintCredential(alice.address, "badge", "hash");
-        await expect(rep.connect(bob).vote(1n, 1)).to.be.revertedWith(
+    it("clamps score at S_MIN while preserving raw vote statistics", async () => {
+        const tokenId = await mintCredentialForAlice();
+        const batch = voters.slice(0, 12);
+        await setKYCFor(...batch);
+
+        for (const voter of batch) {
+            await rep.connect(voter).vote(tokenId, -1);
+        }
+
+        expect(await rep.getScore(tokenId)).to.equal(S_MIN);
+        expect(await rep.getRawVoteSum(tokenId)).to.equal(-120n);
+        expect(await rep.getWeightSum(tokenId)).to.equal(12n);
+        expect(await rep.getVoteCount(tokenId)).to.equal(12n);
+        expect(await rep.getReputation(alice.address)).to.equal(0n);
+    });
+
+    it("rejects duplicate voting from the same address", async () => {
+        const tokenId = await mintCredentialForAlice();
+        await setKYCFor(bob);
+
+        await rep.connect(bob).vote(tokenId, 1);
+
+        await expect(rep.connect(bob).vote(tokenId, -1)).to.be.revertedWith(
+            "ReputationCore: already voted"
+        );
+    });
+
+    it("does not allow non-KYC accounts to vote", async () => {
+        const tokenId = await mintCredentialForAlice();
+        await expect(rep.connect(bob).vote(tokenId, 1)).to.be.revertedWith(
             "ReputationCore: sender not KYC"
         );
     });
 
-    it("should not allow voting on non-existent token", async () => {
-        await rep.connect(admin).setKYC(alice.address, true);
-        await expect(rep.connect(alice).vote(999n, 1)).to.be.revertedWith(
+    it("does not allow voting on non-existent tokens", async () => {
+        await setKYCFor(bob);
+        await expect(rep.connect(bob).vote(999n, 1)).to.be.revertedWith(
             "ReputationCore: token does not exist"
         );
     });
 
-    it("should not allow voting on revoked token", async () => {
-        await setupVoteScenario();
-        await sbt.connect(admin).revokeCredential(1n);
-        await expect(rep.connect(bob).vote(1n, 1)).to.be.revertedWith(
+    it("does not allow voting on revoked tokens", async () => {
+        const tokenId = await mintCredentialForAlice();
+        await setKYCFor(bob);
+        await sbt.connect(admin).revokeCredential(tokenId);
+
+        await expect(rep.connect(bob).vote(tokenId, 1)).to.be.revertedWith(
             "ReputationCore: token revoked"
         );
     });
 
-    it("should reject invalid direction", async () => {
-        await setupVoteScenario();
-        await expect(rep.connect(bob).vote(1n, 2)).to.be.revertedWith(
+    it("rejects invalid vote directions", async () => {
+        const tokenId = await mintCredentialForAlice();
+        await setKYCFor(bob);
+
+        await expect(rep.connect(bob).vote(tokenId, 2)).to.be.revertedWith(
             "ReputationCore: direction must be +1 or -1"
         );
     });
 
     // ─── Weight ──────────────────────────────────────────────────────
 
-    it("should return minimum weight 1 for zero reputation", async () => {
-        await rep.connect(admin).setKYC(alice.address, true);
+    it("returns minimum weight 1 for zero reputation", async () => {
         expect(await rep.getWeight(alice.address)).to.equal(1n);
     });
 
-    it("should be clamped at W_MAX", async () => {
-        // This test would need to artificially bump reputation above W_MAX
-        // We can't easily do that without many votes, so we test the cap via phi instead.
-        // The weight function is ur > W_MAX ? W_MAX : ur
-        expect(W_MAX).to.be.gt(0n);
+    it("clamps voter weight at W_MAX", async () => {
+        await mintCredentialForAlice("degree", "hash1");
+        await sbt.connect(admin).mintCredential(alice.address, "certificate", "hash2");
+        await sbt.connect(admin).mintCredential(alice.address, "badge", "hash3");
+
+        await setKYCFor(bob);
+        await rep.connect(bob).vote(1n, 1);
+        await rep.connect(bob).vote(2n, 1);
+        await rep.connect(bob).vote(3n, 1);
+
+        expect(await rep.getReputation(alice.address)).to.equal(60n);
+        expect(await rep.getWeight(alice.address)).to.equal(W_MAX);
     });
 
     // ─── Reputation consistency ───────────────────────────────────────
 
-    it("should maintain reputation consistency after multiple votes", async () => {
-        await setupVoteScenario();
-        // Vote on both tokens
+    it("maintains reputation consistency after multiple votes", async () => {
+        await mintCredentialForAlice("degree", "hash1");
+        await sbt.connect(admin).mintCredential(alice.address, "certificate", "hash2");
+        await setKYCFor(bob, carol);
+
         await rep.connect(bob).vote(1n, 1);
-        await rep.connect(bob).vote(2n, 1);
+        await rep.connect(carol).vote(2n, 1);
 
         const s1 = await rep.getScore(1n);
         const s2 = await rep.getScore(2n);
         const repAlice = await rep.getReputation(alice.address);
-
-        // Reputation = phi(score1) + phi(score2)
         const expected = (await rep.phi(s1)) + (await rep.phi(s2));
+
         expect(repAlice).to.equal(expected);
+    });
+
+    it("keeps vote statistics isolated per token", async () => {
+        await mintCredentialForAlice("degree", "hash1");
+        await sbt.connect(admin).mintCredential(alice.address, "certificate", "hash2");
+        await setKYCFor(bob, carol, dave);
+
+        await rep.connect(bob).vote(1n, 1);
+        await rep.connect(carol).vote(2n, 1);
+        await rep.connect(dave).vote(2n, -1);
+
+        expect(await rep.getVoteCount(1n)).to.equal(1n);
+        expect(await rep.getVoteCount(2n)).to.equal(2n);
+        expect(await rep.getRawVoteSum(1n)).to.equal(10n);
+        expect(await rep.getRawVoteSum(2n)).to.equal(0n);
     });
 });
