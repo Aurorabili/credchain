@@ -62,9 +62,6 @@ async function onVoted() {
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="space-y-3 min-w-0">
           <div class="flex flex-wrap items-center gap-2">
-            <span class="inline-flex items-center rounded-full bg-primary-container px-3 py-1 text-xs font-medium text-on-primary-container">
-              证书
-            </span>
             <span class="inline-flex items-center rounded-full bg-tertiary-container px-3 py-1 text-xs font-medium text-on-tertiary-container">
               {{ credential.businessType }}
             </span>
