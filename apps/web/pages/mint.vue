@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CredentialBusinessField, CredentialEvidenceReference, CredentialMetadataDocument } from "~/utils/credentialMetadata";
 import { inferEvidenceKind } from "~/utils/credentialMetadata";
-import { putFile, putMetadata } from "~/utils/mockIpfs";
+import { putFile, putMetadata } from "~/utils/ipfs";
 
 definePageMeta({ layout: "default" });
 

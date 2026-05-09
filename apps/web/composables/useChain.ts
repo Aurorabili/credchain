@@ -12,7 +12,7 @@ import type {
     CredentialEvidenceReference,
     CredentialMetadataDocument,
 } from "~/utils/credentialMetadata";
-import { getFile, getMetadata, isMockIpfsCid } from "~/utils/mockIpfs";
+import { getMetadata, toGatewayUrl } from "~/utils/ipfs";
 import { shortAddress } from "~/utils/address";
 
 export interface ChainCredentialAttribute {
@@ -106,17 +106,6 @@ interface DisplayScoreMetrics {
     displayLabel: string;
 }
 
-function toGatewayUrl(uriOrHash: string): string {
-    if (!uriOrHash) return "";
-    if (uriOrHash.startsWith("ipfs://")) {
-        return `https://ipfs.io/ipfs/${uriOrHash.slice("ipfs://".length)}`;
-    }
-    if (/^https?:\/\//.test(uriOrHash)) {
-        return uriOrHash;
-    }
-    return `https://ipfs.io/ipfs/${uriOrHash}`;
-}
-
 function businessTypeLabel(type: string): string {
     const labels: Record<string, string> = {
         graduation: "毕业成就",
@@ -143,26 +132,10 @@ function extractCid(tokenUri: string, metadataCID: string): string {
 }
 
 async function resolveEvidenceAssets(evidence: CredentialEvidenceReference[]) {
-    const resolved = await Promise.all(
-        evidence.map(async (item) => {
-            if (isMockIpfsCid(item.cid)) {
-                const file = await getFile(item.cid);
-                if (file) {
-                    return {
-                        ...item,
-                        url: file.dataUrl,
-                    } satisfies CredentialEvidenceAsset;
-                }
-            }
-
-            return {
-                ...item,
-                url: toGatewayUrl(item.cid),
-            } satisfies CredentialEvidenceAsset;
-        })
-    );
-
-    return resolved;
+    return evidence.map((item) => ({
+        ...item,
+        url: toGatewayUrl(item.cid),
+    } satisfies CredentialEvidenceAsset));
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -222,7 +195,7 @@ function buildFallbackCredential(data: {
         displayType: "certificate",
         metadataCID: data.metadataCID,
         tokenUri: data.tokenUri ?? "",
-        metadataUrl: isMockIpfsCid(data.metadataCID) ? "" : toGatewayUrl(data.tokenUri || data.metadataCID),
+        metadataUrl: toGatewayUrl(data.tokenUri || data.metadataCID),
         score: data.score,
         rawVoteSum: data.rawVoteSum,
         weightSum: data.weightSum,
@@ -251,24 +224,10 @@ function buildFallbackCredential(data: {
 
 async function fetchCredentialMetadata(tokenUri: string, metadataCID: string): Promise<CredentialMetadataDocument | null> {
     const cid = extractCid(tokenUri, metadataCID);
-    if (isMockIpfsCid(cid)) {
-        const document = await getMetadata(cid);
-        if (document) return document;
-    }
-
-    const metadataUrl = toGatewayUrl(tokenUri || metadataCID);
-    if (!metadataUrl) return null;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
     try {
-        const response = await fetch(metadataUrl, { signal: controller.signal });
-        if (!response.ok) return null;
-        return await response.json() as CredentialMetadataDocument;
+        return await getMetadata(cid);
     } catch {
         return null;
-    } finally {
-        clearTimeout(timeout);
     }
 }
 

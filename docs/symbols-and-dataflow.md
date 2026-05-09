@@ -59,17 +59,14 @@
 | `CredentialMetadataDocument` | 接口 | 证书元数据文档结构 |
 | `inferEvidenceKind()` | 函数 | 根据 MIME 类型推断附件类别 |
 
-#### `apps/web/utils/mockIpfs.ts`
+#### `apps/web/utils/ipfs.ts`
 
 | 符号 | 类型 | 说明 |
 | --- | --- | --- |
-| `MockIpfsFileRecord` | 接口 | mock 文件存储记录 |
-| `MockIpfsStoreState` | 接口 | mock IPFS 本地整体状态 |
-| `isMockIpfsCid()` | 函数 | 判断某 CID 是否属于本地 mock 存储 |
-| `putMetadata()` | 函数 | 保存元数据文档并返回模拟 CID |
-| `getMetadata()` | 函数 | 读取元数据文档 |
-| `putFile()` | 函数 | 保存附件文件并返回附件引用 |
-| `getFile()` | 函数 | 读取附件文件记录 |
+| `putMetadata()` | 函数 | 通过 Kubo RPC 上传元数据文档并返回真实 CID |
+| `getMetadata()` | 函数 | 通过本地 Gateway 读取元数据文档 |
+| `putFile()` | 函数 | 通过 Kubo RPC 上传附件并返回附件引用 |
+| `toGatewayUrl()` | 函数 | 将 CID 或 `ipfs://` URI 转为可访问的 Gateway 地址 |
 
 #### `apps/web/composables/useAddressBook.ts`
 
@@ -233,8 +230,8 @@
 ### 5.2 铸造证书数据流
 
 1. 用户在 `mint` 页面填写标题、签发方、业务类型、描述、自定义业务字段、佐证材料。  
-2. 前端先把附件保存到 mock IPFS，本地返回附件 CID。  
-3. 前端组装 `CredentialMetadataDocument`，再将完整元数据保存到 mock IPFS，得到 `metadataCID`。  
+2. 前端先把附件上传到本地 Kubo 节点，返回真实附件 CID。  
+3. 前端组装 `CredentialMetadataDocument`，再将完整元数据上传到本地 Kubo 节点，得到 `metadataCID`。  
 4. 前端通过 `useChain.mint()` 调用 `useViem.mintCredential()`。  
 5. `CredentialSBT` 在链上铸造新 token，并发出 `CredentialMinted` 事件。  
 6. 索引器监听到 `CredentialMinted` 后，将该 token 写入 SQLite。  
@@ -242,7 +239,7 @@
 
 数据流方向为：
 
-`Mint Form -> mockIpfs -> metadataCID -> CredentialSBT.mintCredential -> CredentialMinted Event -> Indexer -> SQLite -> Frontend List/Detail`
+`Mint Form -> Kubo RPC API -> metadataCID -> CredentialSBT.mintCredential -> CredentialMinted Event -> Indexer -> SQLite -> Frontend List/Detail`
 
 ### 5.3 证书列表查询数据流
 

@@ -12,6 +12,9 @@
         "dev:indexer": "pnpm --filter @credchain/indexer dev",
         "chain": "pnpm --filter @credchain/contracts run chain",
         "deploy:contracts": "pnpm --filter @credchain/contracts run deploy",
+        "ipfs:install": "bash scripts/ipfs/install-kubo.sh",
+        "ipfs:init": "bash scripts/ipfs/init-local-node.sh",
+        "ipfs:start": "bash scripts/ipfs/start-local-node.sh",
         "build": "pnpm --filter @credchain/contracts build && pnpm --filter @credchain/shared build && pnpm --filter @credchain/indexer build && pnpm --filter @credchain/web build",
         "test": "pnpm --filter @credchain/contracts test",
         "lint": "pnpm --filter @credchain/contracts lint && pnpm --filter @credchain/web lint"

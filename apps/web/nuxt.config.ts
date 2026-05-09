@@ -1,10 +1,14 @@
 const isDev = process.env.NODE_ENV !== "production";
+const defaultIpfsApiBase = isDev ? "/api/ipfs" : "http://127.0.0.1:5001/api/v0";
+const defaultIpfsGatewayBase = isDev ? "/ipfs" : "http://127.0.0.1:8080/ipfs";
 
 export default defineNuxtConfig({
     ssr: false,
     runtimeConfig: {
         public: {
             indexerBaseUrl: process.env.NUXT_PUBLIC_INDEXER_BASE_URL || "/api/indexer",
+            ipfsApiBase: process.env.NUXT_PUBLIC_IPFS_API_BASE || defaultIpfsApiBase,
+            ipfsGatewayBase: process.env.NUXT_PUBLIC_IPFS_GATEWAY_BASE || defaultIpfsGatewayBase,
         },
     },
     routeRules: isDev
@@ -14,7 +18,18 @@ export default defineNuxtConfig({
         }
         : undefined,
     nitro: {
-        devProxy: {},
+        devProxy: isDev
+            ? {
+                "/api/ipfs": {
+                    target: "http://127.0.0.1:5001/api/v0",
+                    changeOrigin: true,
+                },
+                "/ipfs": {
+                    target: "http://127.0.0.1:8080/ipfs",
+                    changeOrigin: true,
+                },
+            }
+            : undefined,
     },
     vite: {
         optimizeDeps: {

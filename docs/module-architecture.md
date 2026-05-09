@@ -22,8 +22,8 @@
 4. 区块链业务层  
    由 `CredentialSBT` 与 `ReputationCore` 两个核心合约构成，分别负责凭证上链与信誉投票计算。
 
-5. 共享模型与原型存储层  
-   由共享类型定义、前端本地地址簿、本地 mock IPFS 存储组成，用于支撑开发环境下的元数据与附件管理。
+5. 共享模型与内容存储接入层  
+   由共享类型定义、前端本地地址簿、本地 Kubo 节点接入组成，用于支撑元数据与附件管理。
 
 ## 3. 工作区模块图
 
@@ -35,7 +35,7 @@ flowchart LR
       WebUI["页面与组件<br/>pages / components / layouts"]
       WebVM["前端视图模型与领域适配<br/>useChain.ts"]
       WebRPC["链上读写适配<br/>useViem.ts"]
-      WebMeta["元数据与本地存储<br/>credentialMetadata.ts / mockIpfs.ts / useAddressBook.ts"]
+      WebMeta["元数据与内容存储接入<br/>credentialMetadata.ts / ipfs.ts / useAddressBook.ts"]
     end
 
     subgraph Indexer["apps/indexer 轻量索引器"]
@@ -126,14 +126,14 @@ flowchart LR
 
 组件层只负责表达和交互，不负责业务聚合。
 
-### 5.4 本地原型存储层
+### 5.4 内容存储接入层
 
-当前前端为支持开发阶段的业务数据与附件录入，保留了轻量原型存储：
+当前前端通过独立的内容存储接入模块管理元数据与附件：
 
-- `mockIpfs.ts`：以浏览器 `localStorage` 与 `data:` URL 模拟 IPFS
+- `ipfs.ts`：负责调用本地 Kubo 节点的 RPC API 上传文件与元数据，并通过本地 Gateway 生成可访问地址
 - `credentialMetadata.ts`：定义证书元数据结构与附件结构
 
-这使得系统能够在未接入真实 IPFS 服务的情况下完整验证“铸造 - 展示 - 下载附件”的闭环。
+这使得系统能够以真实 IPFS CID 完成“铸造 - 展示 - 下载附件”的完整闭环。
 
 ## 6. 轻量索引器子模块设计
 
@@ -213,7 +213,7 @@ flowchart LR
 
 - 请求索引器 API 获取列表与统计结果
 - 请求链上获取单个 token 的关键真实状态
-- 请求元数据与本地 mock 存储补全业务信息
+- 请求元数据与本地 Kubo Gateway 补全业务信息
 
 索引器只负责只读查询，不负责钱包签名和交易发送。
 

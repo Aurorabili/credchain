@@ -11,6 +11,7 @@ cache
 typechain-types
 dist
 *.tsbuildinfo
-.mock-ipfs
+.tmp
+.tools/kubo
 .agents
 .codex
