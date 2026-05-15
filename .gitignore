@@ -15,3 +15,4 @@ dist
 .tools/kubo
 .agents
 .codex
+.venv
