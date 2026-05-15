@@ -273,7 +273,7 @@ $$
 
 ## 10. 相关工作与参考文献
 
-本方案的理论支撑主要参考了两类工作：一类是基于全局谱/特征向量的声誉计算以对比全图方法的数学含义，另一类是增量维护与差分更新的算法基础。代表性参考文献包括 Eigentrust \cite{kamvar2003eigentrust}（全局声誉谱方法的工程化实现）与物化视图增量维护的综述性工作 \cite{gupta1999mv}。完整 BibTeX 条目见 `docs/references.bib`。
+本方案的理论支撑主要参考了两类工作：一类是基于全局谱/特征向量的声誉计算以对比全图方法的数学含义，另一类是增量维护与差分更新的算法基础。代表性参考文献包括 Eigentrust \cite{kamvar2003eigentrust}（全局声誉谱方法的工程化实现）与物化视图增量维护的综述性工作 \cite{chirkova2012materializedviews}。完整 BibTeX 条目见 `docs/refs.bib`。
 
 ## 11. 投票基数偏差与统计校正（Audience-Size Bias Correction）
 
