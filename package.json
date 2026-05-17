@@ -15,6 +15,7 @@
         "ipfs:install": "bash scripts/ipfs/install-kubo.sh",
         "ipfs:init": "bash scripts/ipfs/init-local-node.sh",
         "ipfs:start": "bash scripts/ipfs/start-local-node.sh",
+        "kyc:set": "bash scripts/set-kyc.sh",
         "build": "pnpm --filter @credchain/contracts build && pnpm --filter @credchain/shared build && pnpm --filter @credchain/indexer build && pnpm --filter @credchain/web build",
         "test": "pnpm --filter @credchain/contracts test",
         "lint": "pnpm --filter @credchain/contracts lint && pnpm --filter @credchain/web lint"
