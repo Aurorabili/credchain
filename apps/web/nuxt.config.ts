@@ -4,6 +4,9 @@ const defaultIpfsGatewayBase = isDev ? "/ipfs" : "http://127.0.0.1:8080/ipfs";
 
 export default defineNuxtConfig({
     ssr: false,
+    experimental: {
+        viteEnvironmentApi: true,
+    },
     runtimeConfig: {
         public: {
             indexerBaseUrl: process.env.NUXT_PUBLIC_INDEXER_BASE_URL || "/api/indexer",
