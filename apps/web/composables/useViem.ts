@@ -25,6 +25,12 @@ const reputationCoreAddress = CONTRACTS.reputationCore.address as `0x${string}`;
 const credentialSbtAbi = CredentialSBTABI.abi;
 const reputationCoreAbi = ReputationCoreABI.abi;
 
+const WRITE_GAS_LIMITS = {
+    vote: 300_000n,
+    mintCredential: 600_000n,
+    revokeCredential: 300_000n,
+} as const;
+
 export interface CredentialDetailSnapshot {
     tokenId: bigint;
     owner: `0x${string}`;
@@ -266,6 +272,7 @@ export async function vote(tokenId: bigint, direction: 1 | -1): Promise<`0x${str
         abi: reputationCoreAbi,
         functionName: "vote",
         args: [tokenId, direction],
+        gas: WRITE_GAS_LIMITS.vote,
     });
     return hash;
 }
@@ -283,6 +290,7 @@ export async function mintCredential(
         abi: credentialSbtAbi,
         functionName: "mintCredential",
         args: [to, businessType, metadataCID],
+        gas: WRITE_GAS_LIMITS.mintCredential,
     });
     return hash;
 }
@@ -296,6 +304,7 @@ export async function revokeCredential(tokenId: bigint): Promise<`0x${string}`> 
         abi: credentialSbtAbi,
         functionName: "revokeCredential",
         args: [tokenId],
+        gas: WRITE_GAS_LIMITS.revokeCredential,
     });
     return hash;
 }
